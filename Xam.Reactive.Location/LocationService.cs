@@ -55,8 +55,8 @@ namespace Xam.Reactive
         public IObservable<LocationRecorded> GetLastKnownDeviceLocation(
             int ignoreIfOlderThanMilliseconds, int timeoutMilliseconds)
         {
-            if (timeoutMilliseconds <= 0) throw new ArgumentException("timeoutMilliseconds cannot be less than zero");
-            if (ignoreIfOlderThanMilliseconds <= 0) throw new ArgumentException("ignoreIfOlderThanMilliseconds cannot be less than zero");
+            if (timeoutMilliseconds <= 0) throw new ArgumentException($"{nameof(timeoutMilliseconds)} cannot be less than zero");
+            if (ignoreIfOlderThanMilliseconds <= 0) throw new ArgumentException($"{nameof(ignoreIfOlderThanMilliseconds)} cannot be less than zero");
 
             var localPositionRecorded = _lastPositionRecorded;
             IObservable<LocationRecorded> returnValue = Observable.Return(localPositionRecorded);
