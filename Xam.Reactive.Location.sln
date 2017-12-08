@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xam.Reactive.Location", "Xam.Reactive.Location\Xam.Reactive.Location.csproj", "{73A4E7E7-9D9F-415E-A5B4-9CE8F547D37C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xam.Reactive.Location.Tests", "Xam.Reactive.Location.Tests\Xam.Reactive.Location.Tests.csproj", "{B34B1767-3A0B-439D-A2C7-538DC03298EB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Files", "Files", "{F4A4C189-F84A-468A-AEA2-DEC341BDEEAE}"
+	ProjectSection(SolutionItems) = preProject
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{73A4E7E7-9D9F-415E-A5B4-9CE8F547D37C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73A4E7E7-9D9F-415E-A5B4-9CE8F547D37C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73A4E7E7-9D9F-415E-A5B4-9CE8F547D37C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73A4E7E7-9D9F-415E-A5B4-9CE8F547D37C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B34B1767-3A0B-439D-A2C7-538DC03298EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B34B1767-3A0B-439D-A2C7-538DC03298EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B34B1767-3A0B-439D-A2C7-538DC03298EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B34B1767-3A0B-439D-A2C7-538DC03298EB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EDE2B312-6C8B-4006-9D65-2A665DF56031}
+	EndGlobalSection
+EndGlobal
