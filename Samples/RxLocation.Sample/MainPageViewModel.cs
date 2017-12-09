@@ -44,8 +44,13 @@ namespace RxLocation.Sample
             GetCurrentPosition = new SimpleCommand(() =>
             {
                 _locationServiceCrossPlatformSimple
-                    .GetDeviceLocation(10000)
+                    .GetDeviceLocation(10000)                    
                     .ObserveOn(XamarinDispatcherScheduler.Current)
+                    .Catch((TimeoutException te) =>
+                    {
+                        LocationChanged = "Time out waiting for location change";
+                        return Observable.Never<LocationRecorded>();
+                    })
                     .Subscribe(DisplayPosition);
             });
 
@@ -54,6 +59,7 @@ namespace RxLocation.Sample
                 .IsListeningForChanges
                 .Subscribe(isListening => IsListeningForLocationChanges = isListening);
         }
+
 
         void DisplayPosition(LocationRecorded position)
         {

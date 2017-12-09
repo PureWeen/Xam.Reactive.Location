@@ -18,5 +18,19 @@ namespace Xam.Reactive.Location
         {
             Reason = reason;
         }
+
+        public LocationActivationException(ActivationFailedReasons reason, Exception innerException)
+            : base($"{reason}", innerException)
+        {
+            Reason = reason;
+        }
+
+
+
+        public LocationActivationException(ActivationFailedReasons reason, string message)
+            : base(message)
+        {
+            Reason = reason;
+        }
     }
 }

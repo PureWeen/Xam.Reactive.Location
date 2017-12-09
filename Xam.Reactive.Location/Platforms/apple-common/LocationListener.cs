@@ -1,4 +1,5 @@
 ﻿using CoreLocation;
+using Foundation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,11 +52,25 @@ namespace Xam.Reactive.Location
 
                     if(_locationManager == null)
                     {
+                        _locationManager = new CLLocationManager();
                         _locationManager.PausesLocationUpdatesAutomatically = false;
                         _locationManager.DesiredAccuracy = CLLocation.AccurracyBestForNavigation;
                         _locationManager.DistanceFilter = 10;
                         _locationManager.ActivityType = CLActivityType.AutomotiveNavigation;
                     }
+
+
+                    Observable.FromEventPattern<EventHandler<NSErrorEventArgs>, NSErrorEventArgs>(
+                            x => _locationManager.Failed += x,
+                            x => _locationManager.Failed -= x
+                            )
+                            .Select(e => e.EventArgs)
+                            .Subscribe(args =>
+                            {
+                                _exceptionHandling.LogException(
+                                    new LocationActivationException(ActivationFailedReasons.Unknown, args.Error.Description)
+                                );
+                            });
                 });
 
             _startListeningForLocationChanges =
@@ -70,29 +85,43 @@ namespace Xam.Reactive.Location
                     var startLocationUpdates =
                         Observable.Create<LocationRecorded>(subj =>
                         {
-                            Manager.StartUpdatingLocation();
-                            IsListeningForChangesImperative = true;
-                            var disp = 
-                                Observable.FromEventPattern<EventHandler<CLLocationsUpdatedEventArgs>, CLLocationsUpdatedEventArgs>(
-                                    x=> Manager.LocationsUpdated += x,
-                                    x => Manager.LocationsUpdated -=x
-                                    )
-                                    .SelectMany(lu => lu.EventArgs.Locations)
-                                    .Select(lu => createPositionFromPlatform(lu))
-                                    .Where(lu => lu != null)
-                                    .Subscribe(subj);
+                            CompositeDisposable disp = new CompositeDisposable();
 
-                            if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))
+                            try
                             {
-                                Manager.RequestLocation();
+                                Manager.StartUpdatingLocation();
+                                IsListeningForChangesImperative = true;
+                                disp.Add(
+                                    Observable.FromEventPattern<EventHandler<CLLocationsUpdatedEventArgs>, CLLocationsUpdatedEventArgs>(
+                                        x => Manager.LocationsUpdated += x,
+                                        x => Manager.LocationsUpdated -= x
+                                        )
+                                        .SelectMany(lu => lu.EventArgs.Locations)
+                                        .Select(lu => createPositionFromPlatform(lu))
+                                        .Where(lu => lu != null)
+                                        .Subscribe(subj)
+                                );
+                                 
+
+                                if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))
+                                {
+                                    Manager.RequestLocation();
+                                }
+
+                                return Disposable.Create(() =>
+                                {
+                                    disp.Dispose();
+                                    Manager.StopUpdatingLocation();
+                                    IsListeningForChangesImperative = false;
+                                });
+                            }
+                            catch(Exception exc)
+                            {                                
+                                subj.OnError(exc);
+                                disp.Dispose();
                             }
 
-                            return Disposable.Create(() =>
-                            {
-                                disp.Dispose();
-                                Manager.StopUpdatingLocation();
-                                IsListeningForChangesImperative = false;
-                            });
+                            return Disposable.Empty;
                         })
                         .SubscribeOn(_scheduler.Dispatcher);
 
