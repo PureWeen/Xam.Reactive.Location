@@ -116,11 +116,13 @@ namespace Xam.Reactive.Location
             else
             {
                 thePosition =
-                    new LocationRecorded(
+                    new LocationRecorded
+                    (
                         location.Latitude,
                         location.Longitude,
                         baseAndroidTime.AddMilliseconds(location.Time),
-                        location.Accuracy); 
+                        location.Accuracy
+                    ); 
             }
 
 
@@ -174,6 +176,7 @@ namespace Xam.Reactive.Location
                         setUpLocationClientIfNeeded();
                         if (servicesConnected() && !IsListeningForChangesImperative)
                         {
+                            
                             LocationServices
                                 .FusedLocationApi
                                 .RequestLocationUpdates(googleApiClient, mLocationRequest, this);
@@ -281,7 +284,7 @@ namespace Xam.Reactive.Location
 
             _exceptionHandling
                 .LogException(
-                    new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, (ConnectionResult)resultCode)
+                    new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, new ConnectionResult(resultCode))
                 );
 
             return false;

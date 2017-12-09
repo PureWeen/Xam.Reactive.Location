@@ -14,13 +14,14 @@ but it has platform specific extensibility points for permissions, the location 
 Not having these things hidden gives you full control
 
 
-### Still thinking about
+### Still thinking about and working on
 - Is location service useful? Should everything just be condensed into the Listeners?
 - Is a default implementaiton useful? Or should user just be forced to implement an abstract listener on each platform?
 - What level of default implementation should be provided for checking permissions?
 - What type of cross platform "settings" should be allowed? or just tell user to implement the listeners
 - UWP I have some older code I need to port into this model to make it work for UWP
 - There's some duplicate logic between listeners (checking permission). Look at centralizing this
+- Need to surface different states. IsAuthorizedObs, Service Disconnected, Reason No Longer Listening, Also different reasons location checking is failing. Disabled on device etc...
 
 
 ### Thanks To

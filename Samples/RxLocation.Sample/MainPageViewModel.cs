@@ -7,12 +7,14 @@ using System.Text;
 using System.Windows.Input;
 using Xam.Reactive.Location;
 using Xamarin.DispatchScheduler;
+using System.Reactive.Concurrency;
 
 namespace RxLocation.Sample
 {
     public class MainPageViewModel : INotifyPropertyChanged
     {
         LocationService _locationServiceCrossPlatformSimple;
+        
         public MainPageViewModel()
         {
             _locationServiceCrossPlatformSimple = LocationService.CreateWithDefaults();
@@ -31,6 +33,7 @@ namespace RxLocation.Sample
                     disp.Disposable = 
                         _locationServiceCrossPlatformSimple
                             .StartListeningForLocationChanges
+                            .SubscribeOn(TaskPoolScheduler.Default)
                             .ObserveOn(XamarinDispatcherScheduler.Current)
                             .Subscribe(DisplayPosition);
                 }
@@ -44,12 +47,13 @@ namespace RxLocation.Sample
             GetCurrentPosition = new SimpleCommand(() =>
             {
                 _locationServiceCrossPlatformSimple
-                    .GetDeviceLocation(10000)                    
+                    .GetDeviceLocation(10000)
+                    .SubscribeOn(TaskPoolScheduler.Default)
                     .ObserveOn(XamarinDispatcherScheduler.Current)
                     .Catch((TimeoutException te) =>
                     {
                         LocationChanged = "Time out waiting for location change";
-                        return Observable.Never<LocationRecorded>();
+                        return Observable.Empty<LocationRecorded>();
                     })
                     .Subscribe(DisplayPosition);
             });
