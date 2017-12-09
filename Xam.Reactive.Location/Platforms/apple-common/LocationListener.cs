@@ -59,7 +59,6 @@ namespace Xam.Reactive.Location
                         _locationManager.ActivityType = CLActivityType.AutomotiveNavigation;
                     }
 
-
                     Observable.FromEventPattern<EventHandler<NSErrorEventArgs>, NSErrorEventArgs>(
                             x => _locationManager.Failed += x,
                             x => _locationManager.Failed -= x
@@ -73,18 +72,20 @@ namespace Xam.Reactive.Location
                             });
                 });
 
+
+
             _startListeningForLocationChanges =
                 new Lazy<IObservable<LocationRecorded>>(() =>
                 {                    
                     var checkPermission =
                         Observable.Defer(() => 
-                            _permissionProvider.Location
-                                .Where(hasPermission => hasPermission)
+                            _permissionProvider.CheckLocationPermission()
                         );
+
 
                     var startLocationUpdates =
                         Observable.Create<LocationRecorded>(subj =>
-                        {
+                        {   
                             CompositeDisposable disp = new CompositeDisposable();
 
                             try
@@ -128,6 +129,11 @@ namespace Xam.Reactive.Location
                     return
                         checkPermission
                             .SelectMany(_ => startLocationUpdates)
+                            .Catch((Exception exc) =>
+                            {
+                                _exceptionHandling.LogException(exc);
+                                return Observable.Empty<LocationRecorded>();
+                            })
                             .Publish()
                             .RefCount();
                 }

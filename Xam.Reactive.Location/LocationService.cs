@@ -34,7 +34,7 @@ namespace Xam.Reactive.Location
             )
         {
 
-            permissionProvider = permissionProvider ?? new AssumeEverythingIsYesCheckPermissionProvider();
+            permissionProvider = permissionProvider ?? new BestGuessCheckPermissionProvider();
             exceptionHandler = exceptionHandler ?? new ExceptionHandlerService();
             scheduler = scheduler ?? new XamarinSchedulerFactory();
             listener = listener ?? new LocationListener(permissionProvider, exceptionHandler, scheduler);

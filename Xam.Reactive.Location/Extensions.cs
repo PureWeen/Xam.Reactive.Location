@@ -5,7 +5,7 @@ using System.Reactive.Subjects;
 using System.Text;
 using System.Threading;
 
-namespace Xam.Reactive.Location
+namespace Xam.Reactive
 {
     public static class Extensions
     {

@@ -20,7 +20,7 @@ Not having these things hidden gives you full control
 - What level of default implementation should be provided for checking permissions?
 - What type of cross platform "settings" should be allowed? or just tell user to implement the listeners
 - UWP I have some older code I need to port into this model to make it work for UWP
-
+- There's some duplicate logic between listeners (checking permission). Look at centralizing this
 
 
 ### Thanks To

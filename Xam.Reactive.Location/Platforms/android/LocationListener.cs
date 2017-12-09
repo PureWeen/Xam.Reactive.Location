@@ -57,9 +57,7 @@ namespace Xam.Reactive.Location
                    var checkPermission =
                        Observable.Defer(
                            () =>
-                               _permissionProvider
-                                   .Location
-                                   .Where(hasPermission => hasPermission)
+                            _permissionProvider.CheckLocationPermission()
                            );
 
 
@@ -79,6 +77,11 @@ namespace Xam.Reactive.Location
                    return
                        checkPermission
                            .SelectMany(_ => startLocationUpdates)
+                            .Catch((Exception exc) =>
+                            {
+                                _exceptionHandling.LogException(exc);
+                                return Observable.Empty<LocationRecorded>();
+                            })
                            .Publish()
                            .RefCount();
                });
