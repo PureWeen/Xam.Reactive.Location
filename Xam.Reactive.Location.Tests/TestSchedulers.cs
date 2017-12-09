@@ -21,6 +21,7 @@ namespace Xam.Reactive.Tests
         private readonly TestScheduler _immediate = new TestScheduler();
         private readonly TestScheduler _newThread = new TestScheduler();
         private readonly TestScheduler _taskPool = new TestScheduler();
+        private readonly TestScheduler _threadPool = new TestScheduler();
 
         #region Explicit implementation of ISchedulerFactory
         IScheduler ISchedulerFactory.CurrentThread { get { return _currentThread; } }
@@ -28,6 +29,7 @@ namespace Xam.Reactive.Tests
         IScheduler ISchedulerFactory.Immediate { get { return _immediate; } }
         IScheduler ISchedulerFactory.NewThread { get { return _newThread; } }
         IScheduler ISchedulerFactory.TaskPool { get { return _taskPool; } }
+        IScheduler ISchedulerFactory.ThreadPool { get { return _threadPool; } }
         #endregion
 
         public TestScheduler CurrentThread { get { return _currentThread; } }
@@ -35,6 +37,7 @@ namespace Xam.Reactive.Tests
         public TestScheduler Immediate { get { return _immediate; } }
         public TestScheduler NewThread { get { return _newThread; } }
         public TestScheduler TaskPool { get { return _taskPool; } }
+        public TestScheduler ThreadPool { get { return _threadPool; } }
     }
 
 }

@@ -12,5 +12,6 @@ namespace Xam.Reactive
         IScheduler Immediate { get; }
         IScheduler NewThread { get; }
         IScheduler TaskPool { get; }
+        IScheduler ThreadPool { get; }
     }
 }

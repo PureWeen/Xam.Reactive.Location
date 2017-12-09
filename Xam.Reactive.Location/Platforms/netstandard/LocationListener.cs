@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xamarin.DispatchScheduler;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
     public partial class LocationListener : ILocationListener
     {
@@ -21,8 +21,8 @@ namespace Xam.Reactive
         {
         }
 
-        public bool IsListeningForChanges => throw new NotImplementedException("Use Platform project");
+        public IObservable<LocationRecorded> StartListeningForLocationChanges => throw new NotImplementedException("Use Platform project");
 
-        public IObservable<LocationRecorded> WatchForPositionChanges => throw new NotImplementedException("Use Platform project");
+        IObservable<bool> ILocationListener.IsListeningForChanges => throw new NotImplementedException("Use Platform project");
     }
 }

@@ -17,7 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xamarin.DispatchScheduler;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
     public partial class LocationListener : Java.Lang.Object,
         Android.Gms.Location.ILocationListener,
@@ -26,11 +26,13 @@ namespace Xam.Reactive
         ILocationListener
     {
         static DateTimeOffset baseAndroidTime = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        Lazy<IObservable<LocationRecorded>> _watchForPositionChanges;
+        Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
         private LocationRequest mLocationRequest;
         private GoogleApiClient googleApiClient;
         private Subject<LocationRecorded> positions { get; } = new Subject<LocationRecorded>();
 
+        readonly ReplaySubject<bool> _isListeningForChangesObs;
+        bool _isListeningForChangesImperative;
 
         readonly ICheckPermissionProvider _permissionProvider;
         readonly IExceptionHandlerService _exceptionHandling;
@@ -46,7 +48,10 @@ namespace Xam.Reactive
             _exceptionHandling = exceptionHandling ?? throw new ArgumentNullException(nameof(exceptionHandling));
             _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
 
-            _watchForPositionChanges =
+            _isListeningForChangesObs = new ReplaySubject<bool>(1);
+            IsListeningForChangesImperative = false;
+
+            _startListeningForLocationChanges =
                new Lazy<IObservable<LocationRecorded>>(() =>
                {
                    var checkPermission =
@@ -78,13 +83,25 @@ namespace Xam.Reactive
                            .RefCount();
                });
         }
-         
 
 
+        public IObservable<bool> IsListeningForChanges => _isListeningForChangesObs.AsObservable().DistinctUntilChanged();
+
+        bool IsListeningForChangesImperative
+        {
+            get
+            {
+                return _isListeningForChangesImperative;
+            }
+            set
+            {
+                _isListeningForChangesImperative = value;
+                _isListeningForChangesObs.OnNext(value);
+            }
+        }
 
 
-        public bool IsListeningForChanges { get; private set; }
-        public IObservable<LocationRecorded> WatchForPositionChanges => _watchForPositionChanges.Value;
+        public IObservable<LocationRecorded> StartListeningForLocationChanges => _startListeningForLocationChanges.Value;
 
         public void OnLocationChanged(Android.Locations.Location location)
         {
@@ -113,10 +130,10 @@ namespace Xam.Reactive
         {
             try
             {
-                if (servicesConnected() && !IsListeningForChanges)
+                if (servicesConnected() && !IsListeningForChangesImperative)
                 {
                     LocationServices.FusedLocationApi.RequestLocationUpdates(googleApiClient, mLocationRequest, this);
-                    IsListeningForChanges = true;
+                    IsListeningForChangesImperative = true;
                 }
             }
             catch (Exception exc)
@@ -127,12 +144,16 @@ namespace Xam.Reactive
 
         public void OnConnectionSuspended(int cause)
         {
+            // TODO make exception more useful
+
+            IsListeningForChangesImperative = false;
 
         }
 
         public void OnConnectionFailed(ConnectionResult result)
         {
-
+            _exceptionHandling
+                .LogException(new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, result));
         }
 
 
@@ -148,13 +169,13 @@ namespace Xam.Reactive
                     .Schedule(() =>
                     {
                         setUpLocationClientIfNeeded();
-                        if (servicesConnected() && !IsListeningForChanges)
+                        if (servicesConnected() && !IsListeningForChangesImperative)
                         {
                             LocationServices
                                 .FusedLocationApi
                                 .RequestLocationUpdates(googleApiClient, mLocationRequest, this);
 
-                            IsListeningForChanges = true;
+                            IsListeningForChangesImperative = true;
                         }
                     });
             }
@@ -173,7 +194,7 @@ namespace Xam.Reactive
                 {
                     try
                     {
-                        IsListeningForChanges = false;
+                        IsListeningForChangesImperative = false;
                         if (servicesConnected())
                         {
                             LocationServices
@@ -254,10 +275,13 @@ namespace Xam.Reactive
             {
                 return googleApiClient.IsConnected;
             }
-            else
-            {
-                return false;
-            }
+
+            _exceptionHandling
+                .LogException(
+                    new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, (ConnectionResult)resultCode)
+                );
+
+            return false;
         }
 
 

@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xamarin.DispatchScheduler;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
     public partial class LocationService
     {
@@ -24,12 +24,22 @@ namespace Xam.Reactive
 
         readonly ISchedulerFactory _scheduler;
 
-        public LocationService() 
+
+        public static LocationService CreateWithDefaults
+            (
+                ILocationListener listener = null,
+                IExceptionHandlerService exceptionHandler = null,
+                ISchedulerFactory scheduler = null,
+                ICheckPermissionProvider permissionProvider = null
+            )
         {
-            ExceptionService = new ExceptionHandlerService();
-            _scheduler = new XamarinSchedulerFactory();
-            Listener = new LocationListener(new NullCheckPermissionProvider(), ExceptionService, _scheduler);
-        }
+
+            permissionProvider = permissionProvider ?? new AssumeEverythingIsYesCheckPermissionProvider();
+            exceptionHandler = exceptionHandler ?? new ExceptionHandlerService();
+            scheduler = scheduler ?? new XamarinSchedulerFactory();
+            listener = listener ?? new LocationListener(permissionProvider, exceptionHandler, scheduler);
+            return new LocationService(listener, exceptionHandler, scheduler);
+        } 
 
         public LocationService(
             ILocationListener listener, 
@@ -41,14 +51,16 @@ namespace Xam.Reactive
             ExceptionService = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         }
- 
 
-        public bool IsListeningForChanges =>
+        public IObservable<Exception> OnError =>
+            ExceptionService.OnError;
+
+        public IObservable<bool> IsListeningForChanges =>
             Listener.IsListeningForChanges;
 
 
-        public IObservable<LocationRecorded> WatchForPositionChange =>
-            Listener.WatchForPositionChanges;
+        public IObservable<LocationRecorded> StartListeningForLocationChanges =>
+            Listener.StartListeningForLocationChanges;
 
 
 
@@ -90,14 +102,10 @@ namespace Xam.Reactive
 
         public IObservable<LocationRecorded> GetDeviceLocation(int timeoutMilliseconds, int howMany)
         {
-            var timeoutObs =
-                Observable.Timer(TimeSpan.FromMilliseconds(timeoutMilliseconds), scheduler: _scheduler.TaskPool)
-                    .SelectMany(_ => Observable.Throw<LocationRecorded>(new TimeoutException()));
-
             return
-                Observable.Defer(() => WatchForPositionChange)
+                Observable.Defer(() => StartListeningForLocationChanges)
                     .CatchAndLog(ExceptionService, NullPosition)
-                    .Amb(timeoutObs)
+                    .Timeout(TimeSpan.FromMilliseconds(timeoutMilliseconds), _scheduler.TaskPool)
                     .Take(howMany)
                     .Select(position =>
                     {

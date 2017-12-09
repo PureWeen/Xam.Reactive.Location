@@ -13,5 +13,7 @@ namespace Xam.Reactive
         public IScheduler Immediate => ImmediateScheduler.Instance;
         public IScheduler NewThread => NewThreadScheduler.Default;
         public IScheduler TaskPool => TaskPoolScheduler.Default;
+
+        public IScheduler ThreadPool => TaskPool;
     }
 }

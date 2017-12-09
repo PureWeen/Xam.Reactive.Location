@@ -5,9 +5,9 @@ using System.Reactive.Subjects;
 using System.Text;
 using System.Threading;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
-    public static class LocationExtensions
+    public static class Extensions
     {
         public static IObservable<T> CatchAndLog<T>(
            this IObservable<T> This,

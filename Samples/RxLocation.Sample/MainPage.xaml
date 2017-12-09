@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:RxLocation.Sample"
+             x:Class="RxLocation.Sample.MainPage">
+
+    <StackLayout>
+        <Label 
+           VerticalOptions="Center" 
+           HorizontalOptions="Center"
+               Text="{Binding LocationChanged}"/>
+
+        <StackLayout Orientation="Horizontal" VerticalOptions="Center" 
+           HorizontalOptions="Center">
+
+            <Label Text="Location Services Active: ">
+                
+            </Label>
+            <Label 
+           
+               Text="{Binding IsListeningForLocationChanges}"/>
+        </StackLayout>
+        
+        <Button x:Name="btnToggleListeningForChanges" Text="Toggle Listening For Changes" Command="{Binding ToggleListeningForChanges}">            
+        </Button>
+        <Button x:Name="btnGetCurrentPosition" Text="Get Current Position" Command="{Binding GetCurrentPosition}">
+        </Button>
+
+        <Label x:Name="lblError" Text="{Binding Error}"></Label>
+    </StackLayout>
+	
+
+</ContentPage>

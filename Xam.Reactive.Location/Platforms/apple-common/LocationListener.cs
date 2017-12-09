@@ -12,18 +12,20 @@ using System.Threading.Tasks;
 using UIKit;
 using Xamarin.DispatchScheduler;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
     public partial class LocationListener : ILocationListener
     {
         CLLocationManager _locationManager;
-        readonly Lazy<IObservable<LocationRecorded>> _watchForPositionChanges;
+        readonly Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
 
         CLLocationManager Manager => _locationManager;
 
-        public bool IsListeningForChanges { get; private set; }
 
-        public IObservable<LocationRecorded> WatchForPositionChanges => _watchForPositionChanges.Value;
+        public IObservable<LocationRecorded> StartListeningForLocationChanges => _startListeningForLocationChanges.Value;
+
+        readonly ReplaySubject<bool> _isListeningForChangesObs;
+        bool _isListeningForChangesImperative;
 
         readonly ICheckPermissionProvider _permissionProvider;
         readonly IExceptionHandlerService _exceptionHandling;
@@ -37,6 +39,9 @@ namespace Xam.Reactive
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             _exceptionHandling = exceptionHandling ?? throw new ArgumentNullException(nameof(exceptionHandling));
             _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
+
+            _isListeningForChangesObs = new ReplaySubject<bool>(1);
+            _isListeningForChangesObs.OnNext(false);
 
             _scheduler
                 .Dispatcher
@@ -53,7 +58,7 @@ namespace Xam.Reactive
                     }
                 });
 
-            _watchForPositionChanges =
+            _startListeningForLocationChanges =
                 new Lazy<IObservable<LocationRecorded>>(() =>
                 {                    
                     var checkPermission =
@@ -66,7 +71,7 @@ namespace Xam.Reactive
                         Observable.Create<LocationRecorded>(subj =>
                         {
                             Manager.StartUpdatingLocation();
-                            IsListeningForChanges = true;
+                            IsListeningForChangesImperative = true;
                             var disp = 
                                 Observable.FromEventPattern<EventHandler<CLLocationsUpdatedEventArgs>, CLLocationsUpdatedEventArgs>(
                                     x=> Manager.LocationsUpdated += x,
@@ -86,7 +91,7 @@ namespace Xam.Reactive
                             {
                                 disp.Dispose();
                                 Manager.StopUpdatingLocation();
-                                IsListeningForChanges = false;
+                                IsListeningForChangesImperative = false;
                             });
                         })
                         .SubscribeOn(_scheduler.Dispatcher);
@@ -99,6 +104,23 @@ namespace Xam.Reactive
                 }
             );
         }
+
+        public IObservable<bool> IsListeningForChanges => _isListeningForChangesObs.AsObservable().DistinctUntilChanged();
+
+        bool IsListeningForChangesImperative
+        {
+            get
+            {
+                return _isListeningForChangesImperative;
+            }
+            set
+            {
+                _isListeningForChangesImperative = value;
+                _isListeningForChangesObs.OnNext(value);
+            }
+        }
+
+
 
         public virtual CLLocationManager OnCreateLocationManager()
         {

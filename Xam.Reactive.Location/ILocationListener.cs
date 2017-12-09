@@ -1,10 +1,10 @@
 ﻿using System;
 
-namespace Xam.Reactive
+namespace Xam.Reactive.Location
 {
     public interface ILocationListener
     {
-        bool IsListeningForChanges { get; }
-        IObservable<LocationRecorded> WatchForPositionChanges { get; }
+        IObservable<bool> IsListeningForChanges { get; }
+        IObservable<LocationRecorded> StartListeningForLocationChanges { get; }
     }
 }
