@@ -7,9 +7,10 @@ namespace Xam.Reactive.Location
 
     public enum ActivationFailedReasons
     {
-        Unknown = 0,
-        GooglePlayServicesNotAvailable = 1,
-        PermissionsIssue = 2
+        // todo work on reasons
+        CheckExceptionOnPlatform = 0,
+        LocationServicesNotAvailable = 1,
+        PermissionsIssue = 2,
     }
 
     public partial class LocationActivationException : Exception

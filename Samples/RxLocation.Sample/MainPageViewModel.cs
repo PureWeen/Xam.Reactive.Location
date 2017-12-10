@@ -17,7 +17,11 @@ namespace RxLocation.Sample
         
         public MainPageViewModel()
         {
-            _locationServiceCrossPlatformSimple = LocationService.CreateWithDefaults();
+            _locationServiceCrossPlatformSimple = 
+                LocationService
+                    .CreateWithDefaults();
+
+
             _locationServiceCrossPlatformSimple
                 .OnError
                 .Subscribe(exc =>
@@ -33,8 +37,6 @@ namespace RxLocation.Sample
                     disp.Disposable = 
                         _locationServiceCrossPlatformSimple
                             .StartListeningForLocationChanges
-                            .SubscribeOn(TaskPoolScheduler.Default)
-                            .ObserveOn(XamarinDispatcherScheduler.Current)
                             .Subscribe(DisplayPosition);
                 }
                 else
@@ -48,8 +50,6 @@ namespace RxLocation.Sample
             {
                 _locationServiceCrossPlatformSimple
                     .GetDeviceLocation(10000)
-                    .SubscribeOn(TaskPoolScheduler.Default)
-                    .ObserveOn(XamarinDispatcherScheduler.Current)
                     .Catch((TimeoutException te) =>
                     {
                         LocationChanged = "Time out waiting for location change";

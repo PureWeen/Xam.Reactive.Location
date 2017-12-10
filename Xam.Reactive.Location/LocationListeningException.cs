@@ -6,5 +6,18 @@ namespace Xam.Reactive.Location
 {
     public partial class LocationListeningException : Exception
     {
+        public LocationListeningException()
+        {
+        }
+
+        public LocationListeningException(string message)
+            : base(message)
+        {
+        }
+
+        public LocationListeningException(string message, Exception inner)
+            : base(message, inner)
+        {
+        }
     }
 }

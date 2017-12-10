@@ -1,17 +1,12 @@
 ﻿using CoreLocation;
 using Foundation;
-using System;
-using System.Collections.Generic;
+using System; 
 using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
-using System.Text;
-using System.Threading.Tasks;
-using UIKit;
-using Xamarin.DispatchScheduler;
+using System.Reactive.Subjects; 
+using UIKit; 
 
 namespace Xam.Reactive.Location
 {
@@ -19,13 +14,12 @@ namespace Xam.Reactive.Location
     {
         CLLocationManager _locationManager;
         readonly Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
-
         CLLocationManager Manager => _locationManager;
 
+        public IObservable<LocationRecorded> StartListeningForLocationChanges => 
+            _startListeningForLocationChanges.Value;
 
-        public IObservable<LocationRecorded> StartListeningForLocationChanges => _startListeningForLocationChanges.Value;
-
-        readonly ReplaySubject<bool> _isListeningForChangesObs;
+        readonly BehaviorSubject<bool> _isListeningForChangesObs;
         bool _isListeningForChangesImperative;
 
         readonly ICheckPermissionProvider _permissionProvider;
@@ -41,8 +35,7 @@ namespace Xam.Reactive.Location
             _exceptionHandling = exceptionHandling ?? throw new ArgumentNullException(nameof(exceptionHandling));
             _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
 
-            _isListeningForChangesObs = new ReplaySubject<bool>(1);
-            _isListeningForChangesObs.OnNext(false);
+            _isListeningForChangesObs = new BehaviorSubject<bool>(false);
 
             _scheduler
                 .Dispatcher
@@ -59,17 +52,20 @@ namespace Xam.Reactive.Location
                         _locationManager.ActivityType = CLActivityType.AutomotiveNavigation;
                     }
 
-                    Observable.FromEventPattern<EventHandler<NSErrorEventArgs>, NSErrorEventArgs>(
+                    Observable.FromEventPattern<NSErrorEventArgs>
+                        (
                             x => _locationManager.Failed += x,
                             x => _locationManager.Failed -= x
-                            )
-                            .Select(e => e.EventArgs)
-                            .Subscribe(args =>
-                            {
-                                _exceptionHandling.LogException(
-                                    new LocationActivationException(ActivationFailedReasons.Unknown, args.Error.Description)
-                                );
-                            });
+                        )
+                        .Select(e => e.EventArgs)
+                        .Subscribe(args =>
+                        {
+                            _exceptionHandling.LogException(
+                                new LocationActivationException(
+                                    ActivationFailedReasons.CheckExceptionOnPlatform, 
+                                    args.Error.Description)
+                            );
+                        });
                 });
 
 
@@ -91,17 +87,17 @@ namespace Xam.Reactive.Location
                             try
                             {
                                 Manager.StartUpdatingLocation();
-                                IsListeningForChangesImperative = true;
-                                disp.Add(
-                                    Observable.FromEventPattern<EventHandler<CLLocationsUpdatedEventArgs>, CLLocationsUpdatedEventArgs>(
+                                IsListeningForChangesImperative = true; 
+                                Observable.FromEventPattern<CLLocationsUpdatedEventArgs>
+                                    (
                                         x => Manager.LocationsUpdated += x,
                                         x => Manager.LocationsUpdated -= x
-                                        )
-                                        .SelectMany(lu => lu.EventArgs.Locations)
-                                        .Select(lu => createPositionFromPlatform(lu))
-                                        .Where(lu => lu != null)
-                                        .Subscribe(subj)
-                                );
+                                    )
+                                    .SelectMany(lu => lu.EventArgs.Locations)
+                                    .Select(lu => createPositionFromPlatform(lu))
+                                    .Where(lu => lu != null)
+                                    .Subscribe(subj)
+                                    .DisposeWith(disp); 
                                  
 
                                 if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))

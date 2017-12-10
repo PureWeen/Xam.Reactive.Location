@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
@@ -44,6 +45,12 @@ namespace Xam.Reactive
         {
 
             return CatchAndLog<T>(This, ExceptionService, () => handledResult);
+        }
+
+
+        public static void DisposeWith(this IDisposable This, CompositeDisposable disp)
+        {
+            disp.Add(This);
         }
     }
 }

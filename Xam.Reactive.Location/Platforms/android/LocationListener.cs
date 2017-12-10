@@ -3,11 +3,13 @@ using Android.Content;
 using Android.Gms.Common;
 using Android.Gms.Common.Apis;
 using Android.Gms.Location;
+using Android.Locations;
 using Android.OS;
 using Android.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -19,25 +21,25 @@ using Xamarin.DispatchScheduler;
 
 namespace Xam.Reactive.Location
 {
-    public partial class LocationListener : Java.Lang.Object,
-        Android.Gms.Location.ILocationListener,
-        GoogleApiClient.IConnectionCallbacks,
-        GoogleApiClient.IOnConnectionFailedListener,
+    [Preserve]
+    public partial class LocationListener : 
         ILocationListener
     {
         static DateTimeOffset baseAndroidTime = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
         Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
         private LocationRequest mLocationRequest;
-        private GoogleApiClient googleApiClient;
+
+        public LocationCallbackImpl _myCallback;
         private Subject<LocationRecorded> positions { get; } = new Subject<LocationRecorded>();
 
-        readonly ReplaySubject<bool> _isListeningForChangesObs;
+        readonly BehaviorSubject<bool> _isListeningForChangesObs;
         bool _isListeningForChangesImperative;
 
         readonly ICheckPermissionProvider _permissionProvider;
         readonly IExceptionHandlerService _exceptionHandling;
         readonly ISchedulerFactory _scheduler;
 
+        private FusedLocationProviderClient mFusedLocationClient;
 
         public LocationListener(
             ICheckPermissionProvider permissionProvider,
@@ -48,45 +50,190 @@ namespace Xam.Reactive.Location
             _exceptionHandling = exceptionHandling ?? throw new ArgumentNullException(nameof(exceptionHandling));
             _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
 
-            _isListeningForChangesObs = new ReplaySubject<bool>(1);
-            IsListeningForChangesImperative = false;
+            mFusedLocationClient = LocationServices.GetFusedLocationProviderClient(GetContext()); 
+            _isListeningForChangesObs = new BehaviorSubject<bool>(false); 
 
             _startListeningForLocationChanges =
-               new Lazy<IObservable<LocationRecorded>>(() =>
-               {
-                   var checkPermission =
-                       Observable.Defer(
-                           () =>
-                            _permissionProvider.CheckLocationPermission()
-                           );
+               new Lazy<IObservable<LocationRecorded>>(createStartListeningForLocationChanges);
 
 
-                   var startLocationUpdates =
-                       Observable.Create<LocationRecorded>(subj =>
-                       {
-                           StartUpdates();
-                           var disp = positions.Subscribe(subj);
-                           return Disposable.Create(() =>
-                           {
-                               disp.Dispose();
-                               StopUpdates();
-                           });
-                       })
-                       .SubscribeOn(_scheduler.Dispatcher);
+            _myCallback = new LocationCallbackImpl();
 
-                   return
-                       checkPermission
-                           .SelectMany(_ => startLocationUpdates)
-                            .Catch((Exception exc) =>
-                            {
-                                _exceptionHandling.LogException(exc);
-                                return Observable.Empty<LocationRecorded>();
-                            })
-                           .Publish()
-                           .RefCount();
-               });
+
+        }
+      
+
+       private IObservable<LocationRecorded> createStartListeningForLocationChanges()
+        {
+            var checkPermission =
+                Observable.Defer(
+                    () => _permissionProvider.CheckLocationPermission()
+                );
+
+            var startLocationUpdates =
+                Observable.Create<LocationRecorded>(subj => createStartLocationUpdates(subj))
+                .SubscribeOn(_scheduler.Dispatcher);
+
+            return
+                checkPermission
+                    .SelectMany(_ => startLocationUpdates)
+                     .Catch((Exception exc) =>
+                     {
+                         _exceptionHandling.LogException(exc);
+                         return Observable.Empty<LocationRecorded>();
+                     })
+                    .Publish()
+                    .RefCount();
         }
 
+        LocationAvailability Availability
+        {
+            get;
+            set;
+        }
+
+        private IDisposable createStartLocationUpdates(IObserver<LocationRecorded> subj)
+        {
+            CompositeDisposable disp = new CompositeDisposable();
+            try
+            {
+                mLocationRequest = OnCreateLocationRequest();
+                if (mLocationRequest == null)
+                {
+                    mLocationRequest = LocationRequest.Create();
+                    mLocationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
+                    mLocationRequest.SetInterval(10000);
+                    mLocationRequest.SetFastestInterval(5000);
+                }
+
+                var locationResults =
+                    Observable.FromEventPattern<LocationCallbackResultEventArgs>
+                        (
+                            x => _myCallback.LocationResult += x,
+                            x => _myCallback.LocationResult -= x
+                        )
+                        .SelectMany(lu => lu.EventArgs.Result.Locations)
+                        .Select(lu => createPositionFromPlatform(lu))
+                        .Where(lu => lu != null)
+                        .StartWith((LocationRecorded)null);
+
+
+                var availabilityChanged = 
+                    Observable.FromEventPattern<LocationCallbackAvailabilityEventArgs>
+                        (
+                            x => _myCallback.LocationAvailability += x,
+                            x => _myCallback.LocationAvailability -= x
+                        )
+                        .Select(lu => lu.EventArgs.Availability)
+                        .StartWith((LocationAvailability)null);
+
+                var getAvailability =
+                    mFusedLocationClient
+                        .GetLocationAvailabilityAsync()
+                        .ToObservable()
+                        .StartWith((LocationAvailability)null);
+
+                var requestUpdates = 
+                    // using from async to ensure it's lazy
+                    Observable.FromAsync(() => mFusedLocationClient
+                            .RequestLocationUpdatesAsync(mLocationRequest, _myCallback)
+                         );
+
+
+                Observable.CombineLatest(
+                        locationResults,
+                        availabilityChanged,
+                        getAvailability,
+                        requestUpdates,
+                    (result, availabilityEvent, currentAvailability, startRequest) =>
+                    {
+                        LocationAvailability availibility =
+                            availabilityEvent ?? currentAvailability;
+                        Availability = availibility;
+
+                        if(availibility == null && result == null)
+                        {
+                            return Observable.Empty<LocationRecorded>();
+                        }
+
+                        if(availibility != null && !availibility.IsLocationAvailable)
+                        {
+                            var activationException =
+                               new LocationActivationException
+                                (
+                                    ActivationFailedReasons.LocationServicesNotAvailable
+                               );
+
+                            return Observable.Throw<LocationRecorded>(activationException);
+                        }
+
+                        if (result == null)
+                        {
+                            return Observable.Empty<LocationRecorded>();
+                        }
+
+                        IsListeningForChangesImperative = true;
+                        return Observable.Return(result);
+                    })
+                    .Merge()
+                    .Catch((ApiException api) =>
+                    {
+                        var activationException =
+                           new LocationActivationException
+                            (
+                                ActivationFailedReasons.CheckExceptionOnPlatform,
+                               api
+                           );
+
+                        return Observable.Throw<LocationRecorded>(activationException);
+                    })
+                    .Subscribe(subj)
+                    .DisposeWith(disp);
+
+                Disposable.Create(() =>
+                {
+                    _scheduler
+                        .Dispatcher
+                        .Schedule(() =>
+                        {
+                            IsListeningForChangesImperative = false;
+                            mFusedLocationClient
+                                 .RemoveLocationUpdatesAsync(_myCallback)
+                                 .ToObservable()
+                                 .CatchAndLog(_exceptionHandling, Unit.Default)
+                                 .Subscribe();
+                        });
+                })
+                .DisposeWith(disp);
+                return disp;
+
+            }
+            catch (Exception exc)
+            {
+                subj.OnError(exc);
+                disp.Dispose();
+            }
+
+            return Disposable.Empty;
+        }
+
+        private LocationRecorded createPositionFromPlatform(Android.Locations.Location location)
+        {
+            var thePosition = OnCreatePositionFromPlatform(location);
+            if (thePosition == null)
+            {
+                thePosition =
+                    new LocationRecorded
+                    (
+                        location.Latitude,
+                        location.Longitude,
+                        baseAndroidTime.AddMilliseconds(location.Time),
+                        location.Accuracy
+                    );
+            }
+
+            return thePosition;
+        }
 
         public IObservable<bool> IsListeningForChanges => _isListeningForChangesObs.AsObservable().DistinctUntilChanged();
 
@@ -98,138 +245,20 @@ namespace Xam.Reactive.Location
             }
             set
             {
-                _isListeningForChangesImperative = value;
-                _isListeningForChangesObs.OnNext(value);
-            }
-        }
-
-
-        public IObservable<LocationRecorded> StartListeningForLocationChanges => _startListeningForLocationChanges.Value;
-
-        public void OnLocationChanged(Android.Locations.Location location)
-        {
-            var thePosition = OnCreatePositionFromPlatform(location);
-            if(thePosition != null)
-            {
-                return;
-            }
-            else
-            {
-                thePosition =
-                    new LocationRecorded
-                    (
-                        location.Latitude,
-                        location.Longitude,
-                        baseAndroidTime.AddMilliseconds(location.Time),
-                        location.Accuracy
-                    ); 
-            }
-
-
-
-            positions.OnNext(thePosition);
-        }
-
-
-        public void OnConnected(Bundle connectionHint)
-        {
-            try
-            {
-                if (servicesConnected() && !IsListeningForChangesImperative)
+                if (_isListeningForChangesImperative != value)
                 {
-                    LocationServices.FusedLocationApi.RequestLocationUpdates(googleApiClient, mLocationRequest, this);
-                    IsListeningForChangesImperative = true;
+                    _isListeningForChangesImperative = value;
+                    _isListeningForChangesObs.OnNext(value);
                 }
             }
-            catch (Exception exc)
-            {
-                if (!_exceptionHandling.LogException(exc)) throw;
-            }
         }
 
-        public void OnConnectionSuspended(int cause)
-        {
-            // TODO make exception more useful
+         
 
-            IsListeningForChangesImperative = false;
+        public IObservable<LocationRecorded> StartListeningForLocationChanges => 
+            _startListeningForLocationChanges.Value;
 
-        }
-
-        public void OnConnectionFailed(ConnectionResult result)
-        {
-            _exceptionHandling
-                .LogException(new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, result));
-        }
-
-
-        
-
-
-        void StartUpdates()
-        {
-            try
-            {
-                _scheduler
-                    .Dispatcher
-                    .Schedule(() =>
-                    {
-                        setUpLocationClientIfNeeded();
-                        if (servicesConnected() && !IsListeningForChangesImperative)
-                        {
-                            
-                            LocationServices
-                                .FusedLocationApi
-                                .RequestLocationUpdates(googleApiClient, mLocationRequest, this);
-
-                            IsListeningForChangesImperative = true;
-                        }
-                    });
-            }
-            catch (Exception exc)
-            {
-                if (!_exceptionHandling.LogException(exc)) throw;
-            }
-        }
-
-
-        void StopUpdates()
-        {
-            _scheduler
-                .Dispatcher
-                .Schedule(() =>
-                {
-                    try
-                    {
-                        IsListeningForChangesImperative = false;
-                        if (servicesConnected())
-                        {
-                            LocationServices
-                                .FusedLocationApi
-                                .RemoveLocationUpdates(googleApiClient, this);
-
-                            googleApiClient?.Disconnect();
-                        }
-                    }
-                    catch (Exception exc)
-                    {
-                        if (!_exceptionHandling.LogException(exc)) throw;
-                    }
-                });
-
-        }
- 
-
-
-        private void setUpLocationClientIfNeeded()
-        {
-            if (googleApiClient == null)
-                buildGoogleApiClient();
-
-            if (!servicesConnected())
-            {
-                googleApiClient.Connect();
-            }
-        }
+       
 
         public virtual LocationRequest OnCreateLocationRequest()
         {
@@ -240,55 +269,15 @@ namespace Xam.Reactive.Location
         {
             return null;
         }
-         
-
-        void buildGoogleApiClient()
-        {
-            googleApiClient =
-                new GoogleApiClient.Builder(GetContext())
-                    .AddConnectionCallbacks(this)
-                    .AddOnConnectionFailedListener(this)
-                    .AddApi(LocationServices.API)
-                    .Build();
-
-            mLocationRequest = OnCreateLocationRequest();
-
-            if (mLocationRequest == null)
-            {
-                mLocationRequest = LocationRequest.Create();
-                mLocationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
-                mLocationRequest.SetInterval(10000);
-                mLocationRequest.SetFastestInterval(5000);
-            }
-
-            googleApiClient.Connect();
-        }
+          
 
 
 
         private Context GetContext()
         {
+            // is this ok enough?
             return Application.Context;
-        }
-
-        private bool servicesConnected()
-        {
-            // Check that Google Play services is available
-            int resultCode = GoogleApiAvailability.Instance.IsGooglePlayServicesAvailable(GetContext());
-
-            // If Google Play services is available
-            if (ConnectionResult.Success == resultCode)
-            {
-                return googleApiClient.IsConnected;
-            }
-
-            _exceptionHandling
-                .LogException(
-                    new LocationActivationException(ActivationFailedReasons.GooglePlayServicesNotAvailable, new ConnectionResult(resultCode))
-                );
-
-            return false;
-        }
+        } 
 
 
     }

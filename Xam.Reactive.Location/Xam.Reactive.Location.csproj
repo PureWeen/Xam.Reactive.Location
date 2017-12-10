@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>Xamarin.iOS10;MonoAndroid70;netstandard20</TargetFrameworks>
+    <TargetFrameworks>Xamarin.iOS10;monoandroid80;netstandard20</TargetFrameworks>
     <AssemblyName>Xam.Reactive.Location</AssemblyName>
     <RootNamespace>Xam.Reactive</RootNamespace>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
 
@@ -13,8 +14,7 @@
   
   <ItemGroup>
     <Compile Remove="Platforms\**\*.cs" />
-    <None Include="Platforms\**\*.cs" />
-    <None Include="LocationService.cs" />
+    <None Include="Platforms\**\*.cs" /> 
     <PackageReference Include="System.Reactive" Version="[3.1.1,4)" />
     <PackageReference Include="Xamarin.DispatchScheduler" Version="1.0.0-beta0002" />
   </ItemGroup>
@@ -27,10 +27,9 @@
     <Compile Include="Platforms\apple-common\**\*.cs" />
   </ItemGroup>
   
-  <ItemGroup Condition=" '$(TargetFramework)' == 'MonoAndroid70' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'monoandroid80' ">
     <Compile Include="Platforms\android\**\*.cs" />
-    <PackageReference Include="Xamarin.GooglePlayServices.Base" Version="42.1021.1" />
-    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="42.1021.1" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.0" />
   </ItemGroup>
   
   

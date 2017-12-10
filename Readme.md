@@ -22,6 +22,7 @@ Not having these things hidden gives you full control
 - UWP I have some older code I need to port into this model to make it work for UWP
 - There's some duplicate logic between listeners (checking permission). Look at centralizing this
 - Need to surface different states. IsAuthorizedObs, Service Disconnected, Reason No Longer Listening, Also different reasons location checking is failing. Disabled on device etc...
+- Error handler might be a weird design and need to just percolate exceptions through stream instead
 
 
 ### Thanks To
