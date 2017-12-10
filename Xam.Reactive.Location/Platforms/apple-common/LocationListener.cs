@@ -71,72 +71,81 @@ namespace Xam.Reactive.Location
 
 
             _startListeningForLocationChanges =
-                new Lazy<IObservable<LocationRecorded>>(() =>
-                {                    
-                    var checkPermission =
-                        Observable.Defer(() => 
-                            _permissionProvider.CheckLocationPermission()
-                        );
-
-
-                    var startLocationUpdates =
-                        Observable.Create<LocationRecorded>(subj =>
-                        {   
-                            CompositeDisposable disp = new CompositeDisposable();
-
-                            try
-                            {
-                                Manager.StartUpdatingLocation();
-                                IsListeningForChangesImperative = true; 
-                                Observable.FromEventPattern<CLLocationsUpdatedEventArgs>
-                                    (
-                                        x => Manager.LocationsUpdated += x,
-                                        x => Manager.LocationsUpdated -= x
-                                    )
-                                    .SelectMany(lu => lu.EventArgs.Locations)
-                                    .Select(lu => createPositionFromPlatform(lu))
-                                    .Where(lu => lu != null)
-                                    .Subscribe(subj)
-                                    .DisposeWith(disp); 
-                                 
-
-                                if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))
-                                {
-                                    Manager.RequestLocation();
-                                }
-
-                                return Disposable.Create(() =>
-                                {
-                                    disp.Dispose();
-                                    Manager.StopUpdatingLocation();
-                                    IsListeningForChangesImperative = false;
-                                });
-                            }
-                            catch(Exception exc)
-                            {                                
-                                subj.OnError(exc);
-                                disp.Dispose();
-                            }
-
-                            return Disposable.Empty;
-                        })
-                        .SubscribeOn(_scheduler.Dispatcher);
-
-                    return
-                        checkPermission
-                            .SelectMany(_ => startLocationUpdates)
-                            .Catch((Exception exc) =>
-                            {
-                                _exceptionHandling.LogException(exc);
-                                return Observable.Empty<LocationRecorded>();
-                            })
-                            .Publish()
-                            .RefCount();
-                }
-            );
+                new Lazy<IObservable<LocationRecorded>>(createStartListeningForLocationChanges); 
         }
 
-        public IObservable<bool> IsListeningForChanges => _isListeningForChangesObs.AsObservable().DistinctUntilChanged();
+        private IObservable<LocationRecorded> createStartLocationUpdates()
+        {
+            return 
+                Observable
+                    .Create<LocationRecorded>(subj =>
+                    {
+
+                        CompositeDisposable disp = new CompositeDisposable();
+
+                        try
+                        {
+                            Manager.StartUpdatingLocation();
+                            IsListeningForChangesImperative = true;
+                            Observable.FromEventPattern<CLLocationsUpdatedEventArgs>
+                                (
+                                    x => Manager.LocationsUpdated += x,
+                                    x => Manager.LocationsUpdated -= x
+                                )
+                                .SelectMany(lu => lu.EventArgs.Locations)
+                                .Select(lu => createPositionFromPlatform(lu))
+                                .Where(lu => lu != null)
+                                .Subscribe(subj)
+                                .DisposeWith(disp);
+
+
+                            if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))
+                            {
+                                Manager.RequestLocation();
+                            }
+
+                            return Disposable.Create(() =>
+                            {
+                                disp.Dispose();
+                                Manager.StopUpdatingLocation();
+                                IsListeningForChangesImperative = false;
+                            });
+                        }
+                        catch (Exception exc)
+                        {
+                            subj.OnError(exc);
+                            disp.Dispose();
+                        }
+
+                        return Disposable.Empty;
+                    })
+                    .SubscribeOn(_scheduler.Dispatcher);
+
+        }
+
+        private IObservable<LocationRecorded> createStartListeningForLocationChanges()
+        {
+            return
+                Observable.Defer(() =>
+                    _permissionProvider
+                        .CheckLocationPermission()
+                        .SelectMany(_=> createStartLocationUpdates())
+                )
+                .Catch((Exception exc) =>
+                {
+                    _exceptionHandling.LogException(exc);
+                    return Observable.Empty<LocationRecorded>();
+                })
+                .Log("PreRefCount:ActiveListener")
+                .Publish()
+                .RefCount()
+                .Log("RefCount:ActiveListener");
+        }
+
+        public IObservable<bool> IsListeningForChanges => 
+            _isListeningForChangesObs
+                .AsObservable()
+                .DistinctUntilChanged();
 
         bool IsListeningForChangesImperative
         {
@@ -146,8 +155,11 @@ namespace Xam.Reactive.Location
             }
             set
             {
-                _isListeningForChangesImperative = value;
-                _isListeningForChangesObs.OnNext(value);
+                if(_isListeningForChangesImperative != value)
+                {
+                    _isListeningForChangesImperative = value;
+                    _isListeningForChangesObs.OnNext(value);
+                }
             }
         }
 

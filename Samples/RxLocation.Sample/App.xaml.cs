@@ -9,11 +9,13 @@ namespace RxLocation.Sample
 {
 	public partial class App : Application
 	{
+        public MainPageViewModel MainViewModel { get; }
 		public App ()
 		{
 			InitializeComponent();
 			MainPage = new RxLocation.Sample.MainPage();
-            MainPage.BindingContext = new MainPageViewModel();
+            MainViewModel = new MainPageViewModel();
+            MainPage.BindingContext = MainViewModel;
 		}
 
 		protected override void OnStart ()

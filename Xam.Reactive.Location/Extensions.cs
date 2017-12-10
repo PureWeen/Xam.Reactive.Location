@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -51,6 +52,20 @@ namespace Xam.Reactive
         public static void DisposeWith(this IDisposable This, CompositeDisposable disp)
         {
             disp.Add(This);
+        }
+
+        public static IObservable<T> Log<T>(this IObservable<T> This, string message)
+        {
+            return
+                This.Do((value)=> Debug.WriteLine($"OnNext:{message}:{value}"),
+                (e)=>
+                {
+                    Debug.WriteLine($"OnError:{message}:{e}");
+                },
+                () =>
+                {
+                     Debug.WriteLine($"OnCompleted:{message}");
+                });
         }
     }
 }

@@ -18,10 +18,8 @@ namespace Xam.Reactive.Location
 
         public const double DesiredAccuracy = 100; 
         protected LocationRecorded _lastPositionRecorded;
-
         public ILocationListener Listener { get; }
         public IExceptionHandlerService ExceptionService { get; }
-
         readonly ISchedulerFactory _scheduler;
 
 
@@ -46,7 +44,6 @@ namespace Xam.Reactive.Location
             IExceptionHandlerService exceptionHandler,
             ISchedulerFactory scheduler)
         {
-
             Listener = listener ?? throw new ArgumentNullException(nameof(listener));
             ExceptionService = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));

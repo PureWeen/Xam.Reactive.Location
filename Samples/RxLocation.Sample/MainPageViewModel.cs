@@ -17,24 +17,12 @@ namespace RxLocation.Sample
         
         public MainPageViewModel()
         {
-            _locationServiceCrossPlatformSimple = 
-                LocationService
-                    .CreateWithDefaults();
-
-
-            _locationServiceCrossPlatformSimple
-                .OnError
-                .Subscribe(exc =>
-                {
-                    Error = exc.ToString();
-                });
-
             SerialDisposable disp = new SerialDisposable();
             ToggleListeningForChanges = new SimpleCommand(() =>
             {
-                if(!IsListeningForLocationChanges)
+                if (!IsListeningForLocationChanges)
                 {
-                    disp.Disposable = 
+                    disp.Disposable =
                         _locationServiceCrossPlatformSimple
                             .StartListeningForLocationChanges
                             .Subscribe(DisplayPosition);
@@ -57,13 +45,31 @@ namespace RxLocation.Sample
                     })
                     .Subscribe(DisplayPosition);
             });
+        }
+
+
+        public void SetLocationService(LocationService service = null)
+        {
+
+            _locationServiceCrossPlatformSimple =
+                service ??
+                LocationService.CreateWithDefaults();
+
+
+            _locationServiceCrossPlatformSimple
+                .OnError
+                .Subscribe(exc =>
+                {
+                    Error = exc.ToString();
+                });
+
+            
 
 
             _locationServiceCrossPlatformSimple
                 .IsListeningForChanges
                 .Subscribe(isListening => IsListeningForLocationChanges = isListening);
         }
-
 
         void DisplayPosition(LocationRecorded position)
         {

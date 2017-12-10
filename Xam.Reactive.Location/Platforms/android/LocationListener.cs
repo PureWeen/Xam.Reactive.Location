@@ -61,29 +61,24 @@ namespace Xam.Reactive.Location
 
 
         }
-      
 
-       private IObservable<LocationRecorded> createStartListeningForLocationChanges()
+        private IObservable<LocationRecorded> createStartListeningForLocationChanges()
         {
-            var checkPermission =
-                Observable.Defer(
-                    () => _permissionProvider.CheckLocationPermission()
-                );
-
-            var startLocationUpdates =
-                Observable.Create<LocationRecorded>(subj => createStartLocationUpdates(subj))
-                .SubscribeOn(_scheduler.Dispatcher);
-
             return
-                checkPermission
-                    .SelectMany(_ => startLocationUpdates)
-                     .Catch((Exception exc) =>
-                     {
-                         _exceptionHandling.LogException(exc);
-                         return Observable.Empty<LocationRecorded>();
-                     })
-                    .Publish()
-                    .RefCount();
+                Observable.Defer(() =>
+                    _permissionProvider
+                        .CheckLocationPermission()
+                        .SelectMany(_ => createStartLocationUpdates())
+                )
+                .Catch((Exception exc) =>
+                {
+                    _exceptionHandling.LogException(exc);
+                    return Observable.Empty<LocationRecorded>();
+                })
+                .Log("PreRefCount:ActiveListener")
+                .Publish()
+                .RefCount()
+                .Log("RefCount:ActiveListener");
         }
 
         LocationAvailability Availability
@@ -92,129 +87,145 @@ namespace Xam.Reactive.Location
             set;
         }
 
-        private IDisposable createStartLocationUpdates(IObserver<LocationRecorded> subj)
+        private IObservable<LocationRecorded> createStartLocationUpdates()
         {
-            CompositeDisposable disp = new CompositeDisposable();
-            try
+            return Observable.Create<LocationRecorded>(subj =>
             {
-                mLocationRequest = OnCreateLocationRequest();
-                if (mLocationRequest == null)
+
+                CompositeDisposable disp = new CompositeDisposable();
+                try
                 {
-                    mLocationRequest = LocationRequest.Create();
-                    mLocationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
-                    mLocationRequest.SetInterval(10000);
-                    mLocationRequest.SetFastestInterval(5000);
-                }
-
-                var locationResults =
-                    Observable.FromEventPattern<LocationCallbackResultEventArgs>
-                        (
-                            x => _myCallback.LocationResult += x,
-                            x => _myCallback.LocationResult -= x
-                        )
-                        .SelectMany(lu => lu.EventArgs.Result.Locations)
-                        .Select(lu => createPositionFromPlatform(lu))
-                        .Where(lu => lu != null)
-                        .StartWith((LocationRecorded)null);
-
-
-                var availabilityChanged = 
-                    Observable.FromEventPattern<LocationCallbackAvailabilityEventArgs>
-                        (
-                            x => _myCallback.LocationAvailability += x,
-                            x => _myCallback.LocationAvailability -= x
-                        )
-                        .Select(lu => lu.EventArgs.Availability)
-                        .StartWith((LocationAvailability)null);
-
-                var getAvailability =
-                    mFusedLocationClient
-                        .GetLocationAvailabilityAsync()
-                        .ToObservable()
-                        .StartWith((LocationAvailability)null);
-
-                var requestUpdates = 
-                    // using from async to ensure it's lazy
-                    Observable.FromAsync(() => mFusedLocationClient
-                            .RequestLocationUpdatesAsync(mLocationRequest, _myCallback)
-                         );
-
-
-                Observable.CombineLatest(
-                        locationResults,
-                        availabilityChanged,
-                        getAvailability,
-                        requestUpdates,
-                    (result, availabilityEvent, currentAvailability, startRequest) =>
+                    mLocationRequest = OnCreateLocationRequest();
+                    if (mLocationRequest == null)
                     {
-                        LocationAvailability availibility =
-                            availabilityEvent ?? currentAvailability;
-                        Availability = availibility;
+                        mLocationRequest = LocationRequest.Create();
+                        mLocationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
+                        mLocationRequest.SetInterval(10000);
+                        mLocationRequest.SetFastestInterval(5000);
+                    }
 
-                        if(availibility == null && result == null)
+                    var locationResults =
+                        Observable.FromEventPattern<LocationCallbackResultEventArgs>
+                            (
+                                x => _myCallback.LocationResult += x,
+                                x => _myCallback.LocationResult -= x
+                            )
+                            .SelectMany(lu => lu.EventArgs.Result.Locations)
+                            .Select(lu => createPositionFromPlatform(lu))
+                            .Where(lu => lu != null)
+                            .StartWith((LocationRecorded)null);
+
+
+                    var availabilityChanged =
+                        Observable.FromEventPattern<LocationCallbackAvailabilityEventArgs>
+                            (
+                                x => _myCallback.LocationAvailability += x,
+                                x => _myCallback.LocationAvailability -= x
+                            )
+                            .Select(lu => lu.EventArgs.Availability)
+                            .StartWith((LocationAvailability)null);
+
+                    var getAvailability =
+                        mFusedLocationClient
+                            .GetLocationAvailabilityAsync()
+                            .ToObservable()
+                            .StartWith((LocationAvailability)null);
+
+                    var requestUpdates =
+                        // using from async to ensure it's lazy
+                        Observable.FromAsync(() => mFusedLocationClient
+                                .RequestLocationUpdatesAsync(mLocationRequest, _myCallback)
+                             );
+
+
+                    Observable.CombineLatest(
+                            locationResults,
+                            availabilityChanged,
+                            getAvailability,
+                            requestUpdates,
+                        (result, availabilityEvent, currentAvailability, startRequest) =>
                         {
-                            return Observable.Empty<LocationRecorded>();
-                        }
+                            LocationAvailability availibility =
+                                availabilityEvent ?? currentAvailability;
+                            Availability = availibility;
 
-                        if(availibility != null && !availibility.IsLocationAvailable)
+                            if (availibility == null && result == null)
+                            {
+                                return Observable.Empty<LocationRecorded>();
+                            }
+
+                            if (availibility != null && !availibility.IsLocationAvailable)
+                            {
+                                var activationException =
+                                   new LocationActivationException
+                                    (
+                                        ActivationFailedReasons.LocationServicesNotAvailable
+                                   );
+
+                                return Observable.Throw<LocationRecorded>(activationException);
+                            }
+
+                            if (result == null)
+                            {
+                                return Observable.Empty<LocationRecorded>();
+                            }
+
+                            IsListeningForChangesImperative = true;
+                            return Observable.Return(result);
+                        })
+                        .SelectMany(x => x)
+                        .Catch((ApiException api) =>
                         {
                             var activationException =
                                new LocationActivationException
                                 (
-                                    ActivationFailedReasons.LocationServicesNotAvailable
+                                    ActivationFailedReasons.CheckExceptionOnPlatform,
+                                   api
                                );
 
                             return Observable.Throw<LocationRecorded>(activationException);
-                        }
+                        })
+                        .Subscribe(subj)
+                        .DisposeWith(disp);
 
-                        if (result == null)
-                        {
-                            return Observable.Empty<LocationRecorded>();
-                        }
-
-                        IsListeningForChangesImperative = true;
-                        return Observable.Return(result);
-                    })
-                    .Merge()
-                    .Catch((ApiException api) =>
+                    Disposable.Create(() =>
                     {
-                        var activationException =
-                           new LocationActivationException
-                            (
-                                ActivationFailedReasons.CheckExceptionOnPlatform,
-                               api
-                           );
-
-                        return Observable.Throw<LocationRecorded>(activationException);
+                        _scheduler
+                            .Dispatcher
+                            .Schedule(() =>
+                            {
+                                try
+                                {
+                                    mFusedLocationClient
+                                         .RemoveLocationUpdatesAsync(_myCallback)
+                                         .ToObservable()
+                                         .CatchAndLog(_exceptionHandling, Unit.Default)
+                                         .Subscribe();
+                                }
+                                catch (Exception exc)
+                                {
+                                    _exceptionHandling.LogException(exc);
+                                }
+                                finally
+                                {
+                                    IsListeningForChangesImperative = false;
+                                }
+                            });
                     })
-                    .Subscribe(subj)
                     .DisposeWith(disp);
+                    return disp;
 
-                Disposable.Create(() =>
+                }
+                catch (Exception exc)
                 {
-                    _scheduler
-                        .Dispatcher
-                        .Schedule(() =>
-                        {
-                            IsListeningForChangesImperative = false;
-                            mFusedLocationClient
-                                 .RemoveLocationUpdatesAsync(_myCallback)
-                                 .ToObservable()
-                                 .CatchAndLog(_exceptionHandling, Unit.Default)
-                                 .Subscribe();
-                        });
-                })
-                .DisposeWith(disp);
-                return disp;
+                    subj.OnError(exc);
+                    disp.Dispose();
+                }
 
+                return Disposable.Empty;
             }
-            catch (Exception exc)
-            {
-                subj.OnError(exc);
-                disp.Dispose();
-            }
-
-            return Disposable.Empty;
+            )
+            .SubscribeOn(_scheduler.Dispatcher);
         }
 
         private LocationRecorded createPositionFromPlatform(Android.Locations.Location location)
