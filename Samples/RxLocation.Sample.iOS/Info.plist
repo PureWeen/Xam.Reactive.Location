@@ -54,5 +54,11 @@
 	<string>Can I access your location when the app is in use?</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Thank you for trusting me when in use. Do you trust me always ;-)</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Thank you for trusting me when in use. Do you trust me always ;-)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

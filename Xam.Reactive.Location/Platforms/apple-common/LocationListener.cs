@@ -13,9 +13,10 @@ namespace Xam.Reactive.Location
     public partial class LocationListener : ILocationListener
     {
         CLLocationManager _locationManager;
-        readonly Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
-        CLLocationManager Manager => _locationManager;
+        readonly ReplaySubject<CLLocationManager> _locationManagerSubj;
+        public IObservable<CLLocationManager> LocationManager => _locationManagerSubj.AsObservable();
 
+        readonly Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
         public IObservable<LocationRecorded> StartListeningForLocationChanges => 
             _startListeningForLocationChanges.Value;
 
@@ -36,7 +37,7 @@ namespace Xam.Reactive.Location
             _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
 
             _isListeningForChangesObs = new BehaviorSubject<bool>(false);
-
+            _locationManagerSubj = new ReplaySubject<CLLocationManager>(1);
             _scheduler
                 .Dispatcher
                 .Schedule(() =>
@@ -45,14 +46,18 @@ namespace Xam.Reactive.Location
 
                     if(_locationManager == null)
                     {
+                        // todo provide basic configuration options
                         _locationManager = new CLLocationManager();
                         _locationManager.PausesLocationUpdatesAutomatically = false;
                         _locationManager.DesiredAccuracy = CLLocation.AccurracyBestForNavigation;
                         _locationManager.DistanceFilter = 10;
-                        _locationManager.ActivityType = CLActivityType.AutomotiveNavigation;
+                        _locationManager.ActivityType = CLActivityType.AutomotiveNavigation;                        
                     }
 
-                    Observable.FromEventPattern<NSErrorEventArgs>
+                    _locationManagerSubj.OnNext(_locationManager);
+
+                    Observable
+                        .FromEventPattern<NSErrorEventArgs>
                         (
                             x => _locationManager.Failed += x,
                             x => _locationManager.Failed -= x
@@ -85,12 +90,20 @@ namespace Xam.Reactive.Location
 
                         try
                         {
-                            Manager.StartUpdatingLocation();
                             IsListeningForChangesImperative = true;
+
+                            Disposable.Create(() =>
+                            {
+                                _locationManager.StopUpdatingLocation();
+                                IsListeningForChangesImperative = false;
+                            })
+                            .DisposeWith(disp);
+
+                            _locationManager.StartUpdatingLocation();
                             Observable.FromEventPattern<CLLocationsUpdatedEventArgs>
                                 (
-                                    x => Manager.LocationsUpdated += x,
-                                    x => Manager.LocationsUpdated -= x
+                                    x => _locationManager.LocationsUpdated += x,
+                                    x => _locationManager.LocationsUpdated -= x
                                 )
                                 .SelectMany(lu => lu.EventArgs.Locations)
                                 .Select(lu => createPositionFromPlatform(lu))
@@ -101,15 +114,10 @@ namespace Xam.Reactive.Location
 
                             if (UIDevice.CurrentDevice.CheckSystemVersion(9, 0))
                             {
-                                Manager.RequestLocation();
+                                _locationManager.RequestLocation();
                             }
 
-                            return Disposable.Create(() =>
-                            {
-                                disp.Dispose();
-                                Manager.StopUpdatingLocation();
-                                IsListeningForChangesImperative = false;
-                            });
+                            return disp;
                         }
                         catch (Exception exc)
                         {
@@ -128,14 +136,17 @@ namespace Xam.Reactive.Location
             return
                 Observable.Defer(() =>
                     _permissionProvider
-                        .CheckLocationPermission()
-                        .SelectMany(_=> createStartLocationUpdates())
+                        .CheckLocationPermission(_exceptionHandling)
+                        .SelectMany(_ =>
+                            createStartLocationUpdates()
+                        )
                 )
                 .Catch((Exception exc) =>
                 {
                     _exceptionHandling.LogException(exc);
-                    return Observable.Empty<LocationRecorded>();
+                    return Observable.Throw<LocationRecorded>(exc);
                 })
+                .Repeat()
                 .Log("PreRefCount:ActiveListener")
                 .Publish()
                 .RefCount()

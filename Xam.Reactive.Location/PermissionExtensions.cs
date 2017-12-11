@@ -11,17 +11,22 @@ namespace Xam.Reactive
     public static class PermissionExtensions
     {
 
-        public static IObservable<bool> CheckLocationPermission(this ICheckPermissionProvider permissionProvider) =>
+        public static IObservable<bool> CheckLocationPermission
+        (
+            this ICheckPermissionProvider permissionProvider, 
+                 IExceptionHandlerService exceptionHandler
+        ) =>
             permissionProvider
                 .Location
-                .SelectMany(result =>
+                .Select(result =>
                 {
                     if (!result)
                     {
-                        return Observable.Throw<bool>(new LocationActivationException(ActivationFailedReasons.PermissionsIssue));
+                        exceptionHandler.LogException(new LocationActivationException(ActivationFailedReasons.PermissionsIssue));
+                        return false;
                     }
 
-                    return Observable.Return(result);
+                    return true;
                 });
     }
 }

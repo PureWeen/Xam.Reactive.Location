@@ -63,9 +63,6 @@ namespace RxLocation.Sample
                     Error = exc.ToString();
                 });
 
-            
-
-
             _locationServiceCrossPlatformSimple
                 .IsListeningForChanges
                 .Subscribe(isListening => IsListeningForLocationChanges = isListening);
@@ -74,7 +71,6 @@ namespace RxLocation.Sample
         void DisplayPosition(LocationRecorded position)
         {
             LocationChanged = $"{position.Recorded} {position.Longitude}, {position.Latitude}";
-
         }
 
 

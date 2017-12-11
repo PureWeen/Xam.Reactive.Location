@@ -2,7 +2,7 @@
 
 namespace Xam.Reactive.Location
 {
-    public interface ILocationListener
+    public partial interface ILocationListener
     {
         IObservable<bool> IsListeningForChanges { get; }
         IObservable<LocationRecorded> StartListeningForLocationChanges { get; }

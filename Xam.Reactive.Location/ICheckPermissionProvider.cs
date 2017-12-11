@@ -8,6 +8,6 @@ namespace Xam.Reactive
 {
     public interface ICheckPermissionProvider
     {
-        IObservable<bool> Location { get; }
+        IObservable<bool> Location { get; }        
     }
 }

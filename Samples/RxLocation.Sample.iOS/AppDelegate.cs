@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Linq;
 using CoreLocation;
 using Foundation;
@@ -27,35 +28,57 @@ namespace RxLocation.Sample.iOS
         {
             global::Xamarin.Forms.Forms.Init();
             var xamApp = new App();
-            var permissions = new iOSCheckPermissions();
+            var permissions = new iOSRequestPermissions();
+            var errorHandler = new ExceptionHandlerService();
+
             var locationService = 
                 LocationService
-                    .CreateWithDefaults(permissionProvider: permissions);
+                    .CreateWithDefaults(exceptionHandler: errorHandler);
+
+            locationService
+                .Listener
+                .LocationManager
+                .Subscribe(manager =>
+                {
+                    manager.AllowsBackgroundLocationUpdates = true;
+                    if (UIDevice.CurrentDevice.CheckSystemVersion(11, 0))
+                    {
+                        manager.ShowsBackgroundLocationIndicator = true;
+                    }
+                });
+
+            errorHandler
+                .OnError
+                .Select(x => x as LocationActivationException)
+                .Where(x => x?.Reason == ActivationFailedReasons.PermissionsIssue)
+                .SelectMany(_ => permissions.Location)
+                .Subscribe();
+
+
 
             xamApp
                 .MainViewModel
                 .SetLocationService(locationService);
 
-
             LoadApplication(xamApp);
 
-
-            permissions.Location.Subscribe();
             return base.FinishedLaunching(app, options);
         }
     }
 
-    public class iOSCheckPermissions : BestGuessCheckPermissionProvider
+
+    public class iOSRequestPermissions
     {
         // needs to be class level for requesting authorizations
         // otherwise it gets collected and dialog vanishes
         // https://stackoverflow.com/questions/7888896/current-location-permission-dialog-disappears-too-quickly
         Lazy<CLLocationManager> _manager;
-        public iOSCheckPermissions()
+        public iOSRequestPermissions()
         {
             _manager = new Lazy<CLLocationManager>(() => new CLLocationManager());
         }
-        public override IObservable<bool> Location
+
+        public IObservable<Unit> Location
         {
             get
             {
@@ -65,13 +88,29 @@ namespace RxLocation.Sample.iOS
                 switch (CLLocationManager.Status)
                 {
                     case CLAuthorizationStatus.AuthorizedAlways:
-                        return Observable.Return(true);
+                        return Observable.Return(Unit.Default);
+
                     case CLAuthorizationStatus.AuthorizedWhenInUse:
                         _manager.Value.RequestAlwaysAuthorization();
-                        return Observable.Return(true);
+                        return Observable.Return(Unit.Default);
                     default:
-                        _manager.Value.RequestWhenInUseAuthorization();
-                        return Observable.Return(false);
+
+                        _manager.Value.RequestWhenInUseAuthorization();                        
+                        Observable.FromEventPattern<CLAuthorizationChangedEventArgs>
+                        (
+                            x => _manager.Value.AuthorizationChanged += x,
+                            x => _manager.Value.AuthorizationChanged -= x
+                        )
+                        .Select(x => x.EventArgs.Status)
+                        .Log("PermissionChanged")
+                        .Where(Status => Status == CLAuthorizationStatus.AuthorizedWhenInUse)
+                        .Take(1)
+                        .Subscribe(_=>
+                        {
+                            _manager.Value.RequestAlwaysAuthorization();
+                        });
+
+                        return Observable.Return(Unit.Default);
                 }
             }
         }
