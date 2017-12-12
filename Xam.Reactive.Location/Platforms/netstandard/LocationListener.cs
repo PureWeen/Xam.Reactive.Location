@@ -7,8 +7,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 using System.Text;
-using System.Threading.Tasks;
-using Xamarin.DispatchScheduler;
+using System.Threading.Tasks; 
 
 namespace Xam.Reactive.Location
 {

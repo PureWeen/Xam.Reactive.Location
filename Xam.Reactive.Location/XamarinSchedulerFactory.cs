@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Reactive.Concurrency;
 using System.Text;
-using Xamarin.DispatchScheduler;
+using Xam.Reactive.Concurrency;
 
 namespace Xam.Reactive
 {

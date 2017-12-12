@@ -6,7 +6,7 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Windows.Input;
 using Xam.Reactive.Location;
-using Xamarin.DispatchScheduler;
+using Xam.Reactive.Concurrency;
 using System.Reactive.Concurrency;
 
 namespace RxLocation.Sample
