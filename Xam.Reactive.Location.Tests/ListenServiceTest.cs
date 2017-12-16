@@ -26,7 +26,7 @@ namespace Xam.Reactive.Location.Tests
             LocationService service =
                 new LocationService(listener.Object, NullExceptionService, scheduler);
 
-            listener.Setup(x => x.StartListeningForLocationChanges)
+            listener.Setup(x => x.PositionChanged())
                 .Returns(Observable.Never<LocationRecorded>());
 
             service
@@ -66,7 +66,7 @@ namespace Xam.Reactive.Location.Tests
 
             // return data after half of timeout
             listener
-                .Setup(x => x.StartListeningForLocationChanges)
+                .Setup(x => x.PositionChanged())
                 .Returns(
                     Observable.Timer(TimeSpan.FromMilliseconds(timeToTimeOut / 2), scheduler.TaskPool)
                         .Select(_=> positionExpected)
@@ -112,7 +112,7 @@ namespace Xam.Reactive.Location.Tests
                 new LocationService(listener.Object, NullExceptionService, scheduler);
 
             listener
-                .Setup(x => x.StartListeningForLocationChanges)
+                .Setup(x => x.PositionChanged())
                 .Returns(new[] { firstPosition, secondPosition }.ToObservable());
 
 

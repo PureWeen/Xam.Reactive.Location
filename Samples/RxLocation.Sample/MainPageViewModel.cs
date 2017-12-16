@@ -13,7 +13,7 @@ namespace RxLocation.Sample
 {
     public class MainPageViewModel : INotifyPropertyChanged
     {
-        LocationService _locationServiceCrossPlatformSimple;
+        ILocationListener _locationServiceCrossPlatformSimple;
 
         public MainPageViewModel()
         {
@@ -24,7 +24,7 @@ namespace RxLocation.Sample
                 {
                     disp.Disposable =
                         GetLocationServices()
-                            .StartListeningForLocationChanges
+                            .PositionChanged()
                             .Subscribe(DisplayPosition);
                 }
                 else
@@ -47,7 +47,7 @@ namespace RxLocation.Sample
             });
         }
 
-        LocationService GetLocationServices()
+        ILocationListener GetLocationServices()
         {
             if (_locationServiceCrossPlatformSimple == null)
                 SetLocationService();
@@ -56,12 +56,12 @@ namespace RxLocation.Sample
         }
 
 
-        public void SetLocationService(LocationService service = null)
+        public void SetLocationService(ILocationListener service = null)
         {
 
             _locationServiceCrossPlatformSimple =
                 service ??
-                LocationService.CreateWithDefaults();
+                LocationListener.Create();
 
 
             _locationServiceCrossPlatformSimple

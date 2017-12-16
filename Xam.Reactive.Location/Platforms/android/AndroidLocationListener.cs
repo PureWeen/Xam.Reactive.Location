@@ -22,64 +22,24 @@ using Xam.Reactive.Concurrency;
 namespace Xam.Reactive.Location
 {
     [Preserve]
-    public partial class LocationListener : 
-        ILocationListener
+    public partial class LocationListener :  LocationListenerBase<Android.Locations.Location>
     {
         static DateTimeOffset baseAndroidTime = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        Lazy<IObservable<LocationRecorded>> _startListeningForLocationChanges;
         private LocationRequest mLocationRequest;
+        private LocationCallbackImpl _myCallback; 
+        private FusedLocationProviderClient mFusedLocationClient; 
 
-        public LocationCallbackImpl _myCallback;
-        private Subject<LocationRecorded> positions { get; } = new Subject<LocationRecorded>();
-
-        readonly BehaviorSubject<bool> _isListeningForChangesObs;
-        bool _isListeningForChangesImperative;
-
-        readonly ICheckPermissionProvider _permissionProvider;
-        readonly IExceptionHandlerService _exceptionHandling;
-        readonly ISchedulerFactory _scheduler;
-
-        private FusedLocationProviderClient mFusedLocationClient;
 
         public LocationListener(
             ICheckPermissionProvider permissionProvider,
             IExceptionHandlerService exceptionHandling,
-            ISchedulerFactory scheduler)
+            ISchedulerFactory scheduler,
+            LocationRequest locationRequest = null) : base(permissionProvider, exceptionHandling, scheduler)
         {
-            _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
-            _exceptionHandling = exceptionHandling ?? throw new ArgumentNullException(nameof(exceptionHandling));
-            _permissionProvider = permissionProvider ?? throw new ArgumentNullException(nameof(permissionProvider));
-
+            mLocationRequest = locationRequest;
             mFusedLocationClient = LocationServices.GetFusedLocationProviderClient(GetContext()); 
-            _isListeningForChangesObs = new BehaviorSubject<bool>(false); 
-
-            _startListeningForLocationChanges =
-               new Lazy<IObservable<LocationRecorded>>(createStartListeningForLocationChanges);
-
-
             _myCallback = new LocationCallbackImpl();
-        }
-
-        private IObservable<LocationRecorded> createStartListeningForLocationChanges()
-        {
-            return
-                Observable.Defer(() =>
-                    _permissionProvider
-                        .CheckLocationPermission(_exceptionHandling)
-                        .SelectMany(_ => 
-                            createStartLocationUpdates()
-                        )
-                )
-                .Catch((Exception exc) =>
-                {
-                    _exceptionHandling.LogException(exc);
-                    return Observable.Throw<LocationRecorded>(exc);
-                })
-                .Repeat()
-                .Log("PreRefCount:ActiveListener")
-                .Publish()
-                .RefCount()
-                .Log("RefCount:ActiveListener");
+            PositionFactory = createPositionFromPlatform;
         }
 
         LocationAvailability Availability
@@ -88,14 +48,13 @@ namespace Xam.Reactive.Location
             set;
         }
 
-        private IObservable<LocationRecorded> createStartLocationUpdates()
+        protected override IObservable<LocationRecorded> CreateStartLocationUpdates()
         {
             return Observable.Create<LocationRecorded>(subj =>
             {
                 CompositeDisposable disp = new CompositeDisposable();
                 try
-                {
-                    mLocationRequest = OnCreateLocationRequest();
+                { 
                     if (mLocationRequest == null)
                     {
                         mLocationRequest = LocationRequest.Create();
@@ -111,15 +70,13 @@ namespace Xam.Reactive.Location
                                 x => _myCallback.LocationResult -= x
                             )
                             .SelectMany(lu => lu.EventArgs.Result.Locations)
-                            .Select(lu => createPositionFromPlatform(lu))
+                            .Select(lu => PositionFactory(lu))
                             .Where(lu => lu != null)
                             .StartWith((LocationRecorded)null)
                             .Catch((Exception exc) =>
                             {
                                 return Observable.Throw<LocationRecorded>(exc);
                             });
-
-
 
                     var removeLocationUpdates = 
                         Observable.Create<Unit>(subs =>
@@ -128,10 +85,10 @@ namespace Xam.Reactive.Location
                                 mFusedLocationClient
                                     .RemoveLocationUpdatesAsync(_myCallback)
                                     .ToObservable()
-                                    .CatchAndLog(_exceptionHandling, Unit.Default)
+                                    .CatchAndLog(ExceptionHandling, Unit.Default)
                                     .Subscribe(subs);
                         })
-                        .SubscribeOn(_scheduler.Dispatcher);
+                        .SubscribeOn(Scheduler.Dispatcher);
 
                     // GetLocationAvailabilityAsync() throws an ApiException
                     // if google play services aren't available
@@ -167,7 +124,7 @@ namespace Xam.Reactive.Location
                                         api
                                     );
 
-                                _exceptionHandling
+                                ExceptionHandling
                                     .LogException(activationException);
 
                                 // wait for a change in location availibility to occur
@@ -231,63 +188,20 @@ namespace Xam.Reactive.Location
                 return Disposable.Empty;
             }
             )
-            .SubscribeOn(_scheduler.Dispatcher);
+            .SubscribeOn(Scheduler.Dispatcher);
         }
+
 
         private LocationRecorded createPositionFromPlatform(Android.Locations.Location location)
-        {
-            var thePosition = OnCreatePositionFromPlatform(location);
-            if (thePosition == null)
-            {
-                thePosition =
-                    new LocationRecorded
-                    (
-                        location.Latitude,
-                        location.Longitude,
-                        baseAndroidTime.AddMilliseconds(location.Time),
-                        location.Accuracy
-                    );
-            }
-
-            return thePosition;
+        {   
+            return    new LocationRecorded
+                (
+                    location.Latitude,
+                    location.Longitude,
+                    baseAndroidTime.AddMilliseconds(location.Time),
+                    location.Accuracy
+                );         
         }
-
-        public IObservable<bool> IsListeningForChanges => _isListeningForChangesObs.AsObservable().DistinctUntilChanged();
-
-        bool IsListeningForChangesImperative
-        {
-            get
-            {
-                return _isListeningForChangesImperative;
-            }
-            set
-            {
-                if (_isListeningForChangesImperative != value)
-                {
-                    _isListeningForChangesImperative = value;
-                    _isListeningForChangesObs.OnNext(value);
-                }
-            }
-        }
-
-         
-
-        public IObservable<LocationRecorded> StartListeningForLocationChanges => 
-            _startListeningForLocationChanges.Value;
-
-       
-
-        public virtual LocationRequest OnCreateLocationRequest()
-        {
-            return null;
-        }
-
-        public virtual LocationRecorded OnCreatePositionFromPlatform(Android.Locations.Location location)
-        {
-            return null;
-        }
-          
-
 
 
         private Context GetContext()
@@ -295,7 +209,6 @@ namespace Xam.Reactive.Location
             // is this ok enough?
             return Application.Context;
         } 
-
 
     }
 }

@@ -30,22 +30,18 @@ namespace RxLocation.Sample.iOS
             var xamApp = new App();
             var permissions = new iOSRequestPermissions();
             var errorHandler = new ExceptionHandlerService();
+            var locationManager = LocationListener.CreateLocationManager();
+
+            locationManager.AllowsBackgroundLocationUpdates = true;
+            if (UIDevice.CurrentDevice.CheckSystemVersion(11, 0))
+            {
+                locationManager.ShowsBackgroundLocationIndicator = true;
+            }
 
             var locationService = 
-                LocationService
-                    .CreateWithDefaults(exceptionHandler: errorHandler);
+                LocationListener
+                    .CreatePlatform(exceptionHandler: errorHandler, locationManager: locationManager);
 
-            locationService
-                .Listener
-                .LocationManager
-                .Subscribe(manager =>
-                {
-                    manager.AllowsBackgroundLocationUpdates = true;
-                    if (UIDevice.CurrentDevice.CheckSystemVersion(11, 0))
-                    {
-                        manager.ShowsBackgroundLocationIndicator = true;
-                    }
-                });
 
             errorHandler
                 .OnError
@@ -53,8 +49,6 @@ namespace RxLocation.Sample.iOS
                 .Where(x => x?.Reason == ActivationFailedReasons.PermissionsIssue)
                 .SelectMany(_ => permissions.Location)
                 .Subscribe();
-
-
 
             xamApp
                 .MainViewModel

@@ -20,8 +20,7 @@ namespace RxLocation.Sample.Droid
             base.OnCreate(bundle);
 
             global::Xamarin.Forms.Forms.Init(this, bundle);
-            var app = new App();
-            app.MainViewModel.SetLocationService();
+            var app = new App(); 
             LoadApplication(app);
 
         }

@@ -2,9 +2,21 @@
 
 namespace Xam.Reactive.Location
 {
-    public partial interface ILocationListener
+    public interface ILocationListener
     {
         IObservable<bool> IsListeningForChanges { get; }
-        IObservable<LocationRecorded> StartListeningForLocationChanges { get; }
+        IObservable<LocationRecorded> PositionChanged();
+
+        IObservable<Exception> OnError { get; }
+
+
+        IObservable<LocationRecorded> GetLastKnownDeviceLocation(
+            int ignoreIfOlderThanMilliseconds,
+            int timeoutMilliseconds);
+
+
+        IObservable<LocationRecorded> GetDeviceLocation(int timeoutMilliseconds);
+
+        IObservable<LocationRecorded> GetDeviceLocation(int timeoutMilliseconds, int howMany);
     }
 }
