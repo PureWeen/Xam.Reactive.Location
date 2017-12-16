@@ -7,6 +7,14 @@ namespace Xam.Reactive
 {
     public class BestGuessCheckPermissionProvider : ICheckPermissionProvider
     {
+        public BestGuessCheckPermissionProvider()
+        {
+
+        }
+        public BestGuessCheckPermissionProvider(ISchedulerFactory schedulerFactory)
+        {
+        }
+
         public virtual IObservable<bool> Location =>
             Observable.Create<bool>(sub =>
             {

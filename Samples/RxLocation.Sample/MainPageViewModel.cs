@@ -14,7 +14,7 @@ namespace RxLocation.Sample
     public class MainPageViewModel : INotifyPropertyChanged
     {
         LocationService _locationServiceCrossPlatformSimple;
-        
+
         public MainPageViewModel()
         {
             SerialDisposable disp = new SerialDisposable();
@@ -23,7 +23,7 @@ namespace RxLocation.Sample
                 if (!IsListeningForLocationChanges)
                 {
                     disp.Disposable =
-                        _locationServiceCrossPlatformSimple
+                        GetLocationServices()
                             .StartListeningForLocationChanges
                             .Subscribe(DisplayPosition);
                 }
@@ -36,7 +36,7 @@ namespace RxLocation.Sample
 
             GetCurrentPosition = new SimpleCommand(() =>
             {
-                _locationServiceCrossPlatformSimple
+                GetLocationServices()
                     .GetDeviceLocation(10000)
                     .Catch((TimeoutException te) =>
                     {
@@ -45,6 +45,14 @@ namespace RxLocation.Sample
                     })
                     .Subscribe(DisplayPosition);
             });
+        }
+
+        LocationService GetLocationServices()
+        {
+            if (_locationServiceCrossPlatformSimple == null)
+                SetLocationService();
+
+            return _locationServiceCrossPlatformSimple;
         }
 
 

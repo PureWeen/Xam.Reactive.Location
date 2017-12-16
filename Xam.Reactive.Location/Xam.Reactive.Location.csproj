@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>Xamarin.iOS10;monoandroid80;netstandard20</TargetFrameworks>
+    <TargetFrameworks>uap10.0;Xamarin.iOS10;monoandroid80;netstandard20</TargetFrameworks>
     <AssemblyName>Xam.Reactive.Location</AssemblyName>
     <RootNamespace>Xam.Reactive</RootNamespace>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -31,7 +31,11 @@
     <Compile Include="Platforms\android\**\*.cs" />
     <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.0" />
   </ItemGroup>
-  
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'uap10.0' ">
+    <Compile Include="Platforms\uap10.0\**\*.cs" />
+    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.0.2" />
+  </ItemGroup>
   
   <Import Project="$(MSBuildSDKExtrasTargets)" Condition="Exists('$(MSBuildSDKExtrasTargets)')" />
 

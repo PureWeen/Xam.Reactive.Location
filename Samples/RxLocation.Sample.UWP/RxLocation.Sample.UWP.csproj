@@ -158,6 +158,10 @@
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.0.4" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Xam.Reactive.Location\Xam.Reactive.Location.csproj">
+      <Project>{73a4e7e7-9d9f-415e-a5b4-9ce8f547d37c}</Project>
+      <Name>Xam.Reactive.Location</Name>
+    </ProjectReference>
     <ProjectReference Include="..\RxLocation.Sample\RxLocation.Sample.csproj">
       <Project>{CA12AE5C-A585-443A-B4F9-267500E45C8F}</Project>
       <Name>RxLocation.Sample</Name>
