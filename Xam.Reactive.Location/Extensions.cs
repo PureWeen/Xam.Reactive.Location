@@ -9,9 +9,9 @@ using System.Threading;
 
 namespace Xam.Reactive
 {
-    public static class Extensions
+    internal static class Extensions
     {
-        public static IObservable<T> CatchAndLog<T>(
+        internal static IObservable<T> CatchAndLog<T>(
            this IObservable<T> This,
            IExceptionHandlerService ExceptionService,
            Func<IObservable<T>> handledResult)
@@ -29,7 +29,7 @@ namespace Xam.Reactive
         }
 
 
-        public static IObservable<T> CatchAndLog<T>(
+        internal static IObservable<T> CatchAndLog<T>(
             this IObservable<T> This, 
             IExceptionHandlerService ExceptionService,
             T handledResult)
@@ -39,7 +39,7 @@ namespace Xam.Reactive
         }
 
 
-        public static IObservable<T> CatchAndLog<T>(
+        internal static IObservable<T> CatchAndLog<T>(
             this IObservable<T> This,
             IExceptionHandlerService ExceptionService,
             IObservable<T> handledResult)
@@ -49,12 +49,12 @@ namespace Xam.Reactive
         }
 
 
-        public static void DisposeWith(this IDisposable This, CompositeDisposable disp)
+        internal static void DisposeWith(this IDisposable This, CompositeDisposable disp)
         {
             disp.Add(This);
         }
 
-        public static IObservable<T> Log<T>(this IObservable<T> This, string message)
+        internal static IObservable<T> Log<T>(this IObservable<T> This, string message)
         {
             return
                 This.Do((value)=> Debug.WriteLine($"OnNext:{message}:{value}"),

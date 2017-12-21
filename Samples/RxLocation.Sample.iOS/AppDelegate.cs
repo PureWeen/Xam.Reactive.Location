@@ -95,8 +95,7 @@ namespace RxLocation.Sample.iOS
                             x => _manager.Value.AuthorizationChanged += x,
                             x => _manager.Value.AuthorizationChanged -= x
                         )
-                        .Select(x => x.EventArgs.Status)
-                        .Log("PermissionChanged")
+                        .Select(x => x.EventArgs.Status) 
                         .Where(Status => Status == CLAuthorizationStatus.AuthorizedWhenInUse)
                         .Take(1)
                         .Subscribe(_=>
