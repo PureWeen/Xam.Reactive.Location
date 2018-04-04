@@ -14,7 +14,7 @@ namespace Xam.Reactive.Location
         private double speed;
         private DateTimeOffset recorded;
         private double accuracy;
-        private double altitudeAccuracy;
+        private double? altitudeAccuracy;
 
         public LocationRecorded() { }
         public LocationRecorded(double latitude, double longitude, DateTimeOffset recorded, float accuracy)
@@ -25,12 +25,12 @@ namespace Xam.Reactive.Location
             this.accuracy = accuracy;
         }
 
-        public double Latitude { get => latitude; set => latitude = value; }
-        public double Longitude { get => longitude; set => longitude = value; }
-        public double Altitude { get => altitude; set => altitude = value; }
-        public double Speed { get => speed; set => speed = value; }
-        public DateTimeOffset Recorded { get => recorded; set => recorded = value; }
+        public double Latitude { get => latitude; protected set => latitude = value; }
+        public double Longitude { get => longitude; protected set => longitude = value; }
+        public double Altitude { get => altitude; protected set => altitude = value; }
+        public double Speed { get => speed; protected set => speed = value; }
+        public DateTimeOffset Recorded { get => recorded; protected set => recorded = value; }
         public double Accuracy { get => accuracy; set => accuracy = value; }
-        public double AltitudeAccuracy { get => altitudeAccuracy; set => altitudeAccuracy = value; }
+        public double? AltitudeAccuracy { get => altitudeAccuracy; protected set => altitudeAccuracy = value; }
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Xam.Reactive.Location
 {
-    public partial class LocationActivationException : Exception
+    public class LocationActivationException : Exception
     {
     }
 }

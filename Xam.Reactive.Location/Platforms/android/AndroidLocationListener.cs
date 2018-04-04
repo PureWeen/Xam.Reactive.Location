@@ -103,7 +103,7 @@ namespace Xam.Reactive.Location
                              )
                             .Select(_ => true)
                             .Do(_=>
-                            {
+                            {                                
                                 // successfully requesting updates so setup remove on unsubscribe.
                                 // only want to wire this up if requesting updates is successful
                                 Disposable.Create(() =>
@@ -193,14 +193,8 @@ namespace Xam.Reactive.Location
 
 
         private LocationRecorded createPositionFromPlatform(Android.Locations.Location location)
-        {   
-            return    new LocationRecorded
-                (
-                    location.Latitude,
-                    location.Longitude,
-                    baseAndroidTime.AddMilliseconds(location.Time),
-                    location.Accuracy
-                );         
+        {  
+            return new AndroidLocationRecorded(location);         
         }
 
 

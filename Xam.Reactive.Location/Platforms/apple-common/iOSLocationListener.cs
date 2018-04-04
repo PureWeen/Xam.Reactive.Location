@@ -100,32 +100,8 @@ namespace Xam.Reactive.Location
         {
             try
             { 
-                var p = new LocationRecorded();
-                p.Accuracy = location.HorizontalAccuracy;
-                p.Latitude = location.Coordinate.Latitude;
-                p.Longitude = location.Coordinate.Longitude;
-
-                if (location.VerticalAccuracy > -1)
-                {
-                    p.Altitude = location.Altitude;
-                    p.AltitudeAccuracy = location.VerticalAccuracy;
-                }
-
-                if (location.Speed > -1)
-                    p.Speed = location.Speed;
-
-                try
-                {
-                    var date = (DateTime)location.Timestamp;
-                    p.Recorded = new DateTimeOffset(date);
-                }
-                catch (Exception)
-                {
-                    p.Recorded = DateTimeOffset.UtcNow;
-                }
-
+                var p = new iOSLocationRecorded(location);
                 return p;
-
             }
             finally
             {
