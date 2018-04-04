@@ -9,7 +9,7 @@
 
 
   <ItemGroup>
-    <PackageReference Include="MSBuild.Sdk.Extras" Version="1.1.0" PrivateAssets="All" />
+    <PackageReference Include="MSBuild.Sdk.Extras" Version="1.3.0" PrivateAssets="All" />
   </ItemGroup>
   
   <ItemGroup>
@@ -29,7 +29,7 @@
   
   <ItemGroup Condition=" '$(TargetFramework)' == 'monoandroid80' ">
     <Compile Include="Platforms\android\**\*.cs" />
-    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.0" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.1" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'uap10.0' ">
