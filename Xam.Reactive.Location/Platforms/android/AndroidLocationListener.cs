@@ -6,6 +6,7 @@ using Android.Gms.Location;
 using Android.Locations;
 using Android.OS;
 using Android.Runtime;
+using Plugin.CurrentActivity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,11 +25,12 @@ namespace Xam.Reactive.Location
     [Preserve]
     public partial class LocationListener :  LocationListenerBase<Android.Locations.Location>
     {
+        protected const int REQUEST_CHECK_SETTINGS = 0x1;
         static DateTimeOffset baseAndroidTime = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
         private LocationRequest mLocationRequest;
         private LocationCallbackImpl _myCallback; 
-        private FusedLocationProviderClient mFusedLocationClient; 
-
+        private FusedLocationProviderClient mFusedLocationClient;
+        private LocationSettingsRequest mLocationSettingsRequest;
 
         public LocationListener(
             ICheckPermissionProvider permissionProvider,
@@ -36,8 +38,10 @@ namespace Xam.Reactive.Location
             ISchedulerFactory scheduler,
             LocationRequest locationRequest = null) : base(permissionProvider, exceptionHandling, scheduler)
         {
-            mLocationRequest = locationRequest;
-            mFusedLocationClient = LocationServices.GetFusedLocationProviderClient(GetContext()); 
+            SetLocationRequest(locationRequest);
+            mFusedLocationClient = LocationServices.GetFusedLocationProviderClient(GetContext());
+
+            
             _myCallback = new LocationCallbackImpl();
             PositionFactory = createPositionFromPlatform;
         }
@@ -48,6 +52,20 @@ namespace Xam.Reactive.Location
             set;
         }
 
+
+        void SetLocationRequest(LocationRequest locationRequest)
+        {
+            mLocationSettingsRequest?.Dispose();
+            mLocationRequest?.Dispose();
+
+            LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+            builder.AddLocationRequest(locationRequest);
+            mLocationSettingsRequest = builder.Build();
+            mLocationRequest = locationRequest;
+        }
+
+
+
         protected override IObservable<LocationRecorded> CreateStartLocationUpdates()
         {
             return Observable.Create<LocationRecorded>(subj =>
@@ -57,10 +75,11 @@ namespace Xam.Reactive.Location
                 { 
                     if (mLocationRequest == null)
                     {
-                        mLocationRequest = LocationRequest.Create();
-                        mLocationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
-                        mLocationRequest.SetInterval(10000);
-                        mLocationRequest.SetFastestInterval(5000);
+                        var locationRequest  = LocationRequest.Create();
+                        locationRequest.SetPriority(LocationRequest.PriorityBalancedPowerAccuracy);
+                        locationRequest.SetInterval(10000);
+                        locationRequest.SetFastestInterval(5000);
+                        SetLocationRequest(locationRequest);
                     }
 
                     var locationResults =
@@ -147,10 +166,28 @@ namespace Xam.Reactive.Location
                             })
                             .StartWith(false);
 
+
+                    var settingsRequest =
+                        Observable.FromAsync(() => LocationServices
+                            .GetSettingsClient(GetContext())
+                            .CheckLocationSettingsAsync(mLocationSettingsRequest))
+                            .Select(locationSettingsResult =>
+                            {
+                                return true;
+                            })
+                            .StartWith(false)
+                            .Catch((ResolvableApiException exc) =>
+                            {
+                                exc.StartResolutionForResult(CrossCurrentActivity.Current.Activity, REQUEST_CHECK_SETTINGS);
+                                return Observable.Return(false);
+                            });
+
+
                     Observable.CombineLatest(
                             locationResults,
                             requestUpdates(),
-                        (result, requestUpdatesActive) =>
+                            settingsRequest,
+                        (result, requestUpdatesActive, settingsResponse) =>
                         {
                             IsListeningForChangesImperative = true;
 
