@@ -178,7 +178,11 @@ namespace Xam.Reactive.Location
                             .StartWith(false)
                             .Catch((ResolvableApiException exc) =>
                             {
-                                exc.StartResolutionForResult(CrossCurrentActivity.Current.Activity, REQUEST_CHECK_SETTINGS);
+                                if (CrossCurrentActivity.Current.Activity != null)
+                                {
+                                    exc.StartResolutionForResult(CrossCurrentActivity.Current.Activity, REQUEST_CHECK_SETTINGS);
+                                }
+                                
                                 return Observable.Return(false);
                             });
 
@@ -237,8 +241,7 @@ namespace Xam.Reactive.Location
 
         private Context GetContext()
         {
-            // is this ok enough?
-            return Application.Context;
+            return CrossCurrentActivity.Current?.Activity?.BaseContext ?? Application.Context;
         } 
 
     }
