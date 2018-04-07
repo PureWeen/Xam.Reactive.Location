@@ -178,11 +178,13 @@ namespace Xam.Reactive.Location
                             .StartWith(false)
                             .Catch((ResolvableApiException exc) =>
                             {
-                                if (CrossCurrentActivity.Current.Activity != null)
+                                Scheduler.Dispatcher.Schedule(() =>
                                 {
-                                    exc.StartResolutionForResult(CrossCurrentActivity.Current.Activity, REQUEST_CHECK_SETTINGS);
-                                }
-                                
+                                    var activity = CrossCurrentActivity.Current.Activity;
+                                    if (activity != null)
+                                        exc.StartResolutionForResult(activity, REQUEST_CHECK_SETTINGS);
+                                });
+
                                 return Observable.Return(false);
                             });
 
@@ -242,7 +244,6 @@ namespace Xam.Reactive.Location
         private Context GetContext()
         {
             return CrossCurrentActivity.Current?.Activity?.BaseContext ?? Application.Context;
-        } 
-
+        }
     }
 }

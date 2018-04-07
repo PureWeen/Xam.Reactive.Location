@@ -29,7 +29,7 @@
   
   <ItemGroup Condition=" '$(TargetFramework)' == 'monoandroid80' ">
     <Compile Include="Platforms\android\**\*.cs" />
-    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.1" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Location" Version="60.1142.0" />
     <PackageReference Include="Plugin.CurrentActivity" Version="1.0.1" />
   </ItemGroup>
 

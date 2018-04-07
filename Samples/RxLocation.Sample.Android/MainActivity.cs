@@ -6,6 +6,7 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 using Android.OS;
+using Android.Content;
 
 namespace RxLocation.Sample.Droid
 {
@@ -23,6 +24,15 @@ namespace RxLocation.Sample.Droid
             var app = new App(); 
             LoadApplication(app);
 
+        }
+
+        protected override void OnActivityResult(int requestCode, Result resultCode, Intent data)
+        {
+            base.OnActivityResult(requestCode, resultCode, data);
+            if(data.HasExtra("com.google.android.gms.location.LOCATION_SETTINGS_STATES"))
+            {
+
+            }
         }
     }
 }
