@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xam.Reactive.Location.Tests
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Files", "Files", "{F4A4C189-F84A-468A-AEA2-DEC341BDEEAE}"
 	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
 		Readme.md = Readme.md
+		version.json = version.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{C64FA431-B88F-4F84-BF88-22F505083CCB}"
