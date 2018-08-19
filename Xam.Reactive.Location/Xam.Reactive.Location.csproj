@@ -1,7 +1,7 @@
 ﻿<Project Sdk="MSBuild.Sdk.Extras">
 
   <PropertyGroup>
-    <TargetFrameworks>uap10.0.16299;Xamarin.iOS10;monoandroid80;netstandard20</TargetFrameworks>
+    <TargetFrameworks>uap10.0.16299;Xamarin.iOS10;MonoAndroid80;netstandard20</TargetFrameworks>
     <AssemblyName>Xam.Reactive.Location</AssemblyName>
     <RootNamespace>Xam.Reactive</RootNamespace>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
